@@ -1,0 +1,563 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXContainerItemProxy section */
+		76F1EE812E42F71500EAB4BE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 76F1EE6B2E42F71300EAB4BE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 76F1EE722E42F71300EAB4BE;
+			remoteInfo = "MD TalkMan";
+		};
+		76F1EE8B2E42F71500EAB4BE /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 76F1EE6B2E42F71300EAB4BE /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 76F1EE722E42F71300EAB4BE;
+			remoteInfo = "MD TalkMan";
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		76F1EE732E42F71300EAB4BE /* MD TalkMan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "MD TalkMan.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		76F1EE802E42F71500EAB4BE /* MD TalkManTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MD TalkManTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		76F1EE8A2E42F71500EAB4BE /* MD TalkManUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MD TalkManUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		76F1EE752E42F71300EAB4BE /* MD TalkMan */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "MD TalkMan";
+			sourceTree = "<group>";
+		};
+		76F1EE832E42F71500EAB4BE /* MD TalkManTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "MD TalkManTests";
+			sourceTree = "<group>";
+		};
+		76F1EE8D2E42F71500EAB4BE /* MD TalkManUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = "MD TalkManUITests";
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		76F1EE702E42F71300EAB4BE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		76F1EE7D2E42F71500EAB4BE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		76F1EE872E42F71500EAB4BE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		76F1EE6A2E42F71300EAB4BE = {
+			isa = PBXGroup;
+			children = (
+				76F1EE752E42F71300EAB4BE /* MD TalkMan */,
+				76F1EE832E42F71500EAB4BE /* MD TalkManTests */,
+				76F1EE8D2E42F71500EAB4BE /* MD TalkManUITests */,
+				76F1EE742E42F71300EAB4BE /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		76F1EE742E42F71300EAB4BE /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				76F1EE732E42F71300EAB4BE /* MD TalkMan.app */,
+				76F1EE802E42F71500EAB4BE /* MD TalkManTests.xctest */,
+				76F1EE8A2E42F71500EAB4BE /* MD TalkManUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		76F1EE722E42F71300EAB4BE /* MD TalkMan */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 76F1EE942E42F71500EAB4BE /* Build configuration list for PBXNativeTarget "MD TalkMan" */;
+			buildPhases = (
+				76F1EE6F2E42F71300EAB4BE /* Sources */,
+				76F1EE702E42F71300EAB4BE /* Frameworks */,
+				76F1EE712E42F71300EAB4BE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				76F1EE752E42F71300EAB4BE /* MD TalkMan */,
+			);
+			name = "MD TalkMan";
+			packageProductDependencies = (
+			);
+			productName = "MD TalkMan";
+			productReference = 76F1EE732E42F71300EAB4BE /* MD TalkMan.app */;
+			productType = "com.apple.product-type.application";
+		};
+		76F1EE7F2E42F71500EAB4BE /* MD TalkManTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 76F1EE972E42F71500EAB4BE /* Build configuration list for PBXNativeTarget "MD TalkManTests" */;
+			buildPhases = (
+				76F1EE7C2E42F71500EAB4BE /* Sources */,
+				76F1EE7D2E42F71500EAB4BE /* Frameworks */,
+				76F1EE7E2E42F71500EAB4BE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				76F1EE822E42F71500EAB4BE /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				76F1EE832E42F71500EAB4BE /* MD TalkManTests */,
+			);
+			name = "MD TalkManTests";
+			packageProductDependencies = (
+			);
+			productName = "MD TalkManTests";
+			productReference = 76F1EE802E42F71500EAB4BE /* MD TalkManTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		76F1EE892E42F71500EAB4BE /* MD TalkManUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 76F1EE9A2E42F71500EAB4BE /* Build configuration list for PBXNativeTarget "MD TalkManUITests" */;
+			buildPhases = (
+				76F1EE862E42F71500EAB4BE /* Sources */,
+				76F1EE872E42F71500EAB4BE /* Frameworks */,
+				76F1EE882E42F71500EAB4BE /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				76F1EE8C2E42F71500EAB4BE /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				76F1EE8D2E42F71500EAB4BE /* MD TalkManUITests */,
+			);
+			name = "MD TalkManUITests";
+			packageProductDependencies = (
+			);
+			productName = "MD TalkManUITests";
+			productReference = 76F1EE8A2E42F71500EAB4BE /* MD TalkManUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		76F1EE6B2E42F71300EAB4BE /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 1640;
+				LastUpgradeCheck = 1640;
+				TargetAttributes = {
+					76F1EE722E42F71300EAB4BE = {
+						CreatedOnToolsVersion = 16.4;
+					};
+					76F1EE7F2E42F71500EAB4BE = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = 76F1EE722E42F71300EAB4BE;
+					};
+					76F1EE892E42F71500EAB4BE = {
+						CreatedOnToolsVersion = 16.4;
+						TestTargetID = 76F1EE722E42F71300EAB4BE;
+					};
+				};
+			};
+			buildConfigurationList = 76F1EE6E2E42F71300EAB4BE /* Build configuration list for PBXProject "MD TalkMan" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 76F1EE6A2E42F71300EAB4BE;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 76F1EE742E42F71300EAB4BE /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				76F1EE722E42F71300EAB4BE /* MD TalkMan */,
+				76F1EE7F2E42F71500EAB4BE /* MD TalkManTests */,
+				76F1EE892E42F71500EAB4BE /* MD TalkManUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		76F1EE712E42F71300EAB4BE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		76F1EE7E2E42F71500EAB4BE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		76F1EE882E42F71500EAB4BE /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		76F1EE6F2E42F71300EAB4BE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		76F1EE7C2E42F71500EAB4BE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		76F1EE862E42F71500EAB4BE /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		76F1EE822E42F71500EAB4BE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 76F1EE722E42F71300EAB4BE /* MD TalkMan */;
+			targetProxy = 76F1EE812E42F71500EAB4BE /* PBXContainerItemProxy */;
+		};
+		76F1EE8C2E42F71500EAB4BE /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 76F1EE722E42F71300EAB4BE /* MD TalkMan */;
+			targetProxy = 76F1EE8B2E42F71500EAB4BE /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		76F1EE922E42F71500EAB4BE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = U5U9XZFVXL;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		76F1EE932E42F71500EAB4BE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = U5U9XZFVXL;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				VALIDATE_PRODUCT = YES;
+			};
+			name = Release;
+		};
+		76F1EE952E42F71500EAB4BE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U5U9XZFVXL;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "ganglinwu.MD-TalkMan";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		76F1EE962E42F71500EAB4BE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U5U9XZFVXL;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
+				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
+				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPad = "UIInterfaceOrientationPortrait UIInterfaceOrientationPortraitUpsideDown UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				INFOPLIST_KEY_UISupportedInterfaceOrientations_iPhone = "UIInterfaceOrientationPortrait UIInterfaceOrientationLandscapeLeft UIInterfaceOrientationLandscapeRight";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "ganglinwu.MD-TalkMan";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		76F1EE982E42F71500EAB4BE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U5U9XZFVXL;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "ganglinwu.MD-TalkManTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MD TalkMan.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MD TalkMan";
+			};
+			name = Debug;
+		};
+		76F1EE992E42F71500EAB4BE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U5U9XZFVXL;
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 18.5;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "ganglinwu.MD-TalkManTests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/MD TalkMan.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/MD TalkMan";
+			};
+			name = Release;
+		};
+		76F1EE9B2E42F71500EAB4BE /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U5U9XZFVXL;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "ganglinwu.MD-TalkManUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "MD TalkMan";
+			};
+			name = Debug;
+		};
+		76F1EE9C2E42F71500EAB4BE /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				DEVELOPMENT_TEAM = U5U9XZFVXL;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = "ganglinwu.MD-TalkManUITests";
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_TARGET_NAME = "MD TalkMan";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		76F1EE6E2E42F71300EAB4BE /* Build configuration list for PBXProject "MD TalkMan" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				76F1EE922E42F71500EAB4BE /* Debug */,
+				76F1EE932E42F71500EAB4BE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		76F1EE942E42F71500EAB4BE /* Build configuration list for PBXNativeTarget "MD TalkMan" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				76F1EE952E42F71500EAB4BE /* Debug */,
+				76F1EE962E42F71500EAB4BE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		76F1EE972E42F71500EAB4BE /* Build configuration list for PBXNativeTarget "MD TalkManTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				76F1EE982E42F71500EAB4BE /* Debug */,
+				76F1EE992E42F71500EAB4BE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		76F1EE9A2E42F71500EAB4BE /* Build configuration list for PBXNativeTarget "MD TalkManUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				76F1EE9B2E42F71500EAB4BE /* Debug */,
+				76F1EE9C2E42F71500EAB4BE /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 76F1EE6B2E42F71300EAB4BE /* Project object */;
+}
