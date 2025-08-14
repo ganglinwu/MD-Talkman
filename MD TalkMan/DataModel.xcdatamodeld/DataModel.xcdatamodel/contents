@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<model type="com.apple.IDECoreDataModeler.DataModel" documentVersion="1.0" lastSavedToolsVersion="23788.4" systemVersion="24G84" minimumToolsVersion="Automatic" sourceLanguage="Swift" usedWithSwiftData="YES" userDefinedModelVersionIdentifier="">
+    <entity name="Bookmark" representedClassName="Bookmark" syncable="YES" codeGenerationType="class">
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="position" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="timestamp" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="title" optional="YES" attributeType="String"/>
+        <relationship name="readingProgress" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ReadingProgress" inverseName="bookMark" inverseEntity="ReadingProgress"/>
+    </entity>
+    <entity name="ContentSection" representedClassName="ContentSection" syncable="YES" codeGenerationType="class">
+        <attribute name="endIndex" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="isSkippable" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="level" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="startIndex" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="type" attributeType="String"/>
+        <relationship name="parsedContent" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="ParsedContent" inverseName="contentSection" inverseEntity="ParsedContent"/>
+    </entity>
+    <entity name="GitRepository" representedClassName="GitRepository" syncable="YES" codeGenerationType="class">
+        <attribute name="accessToken" optional="YES" attributeType="String"/>
+        <attribute name="defaultBranch" attributeType="String" defaultValueString="main"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="lastSyncDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="localPath" attributeType="String"/>
+        <attribute name="name" attributeType="String"/>
+        <attribute name="remoteURL" attributeType="String"/>
+        <attribute name="syncEnabled" attributeType="Boolean" defaultValueString="YES" usesScalarValueType="YES"/>
+        <relationship name="markdownFiles" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="MarkdownFile" inverseName="repository" inverseEntity="MarkdownFile"/>
+    </entity>
+    <entity name="MarkdownFile" representedClassName="MarkdownFile" syncable="YES" codeGenerationType="class">
+        <attribute name="filePath" attributeType="String"/>
+        <attribute name="fileSize" attributeType="Integer 64" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="gitFilePath" attributeType="String"/>
+        <attribute name="hasLocalChanges" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="id" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="lastCommitHash" optional="YES" attributeType="String"/>
+        <attribute name="lastModified" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="repositoryId" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="syncStatus" attributeType="String" defaultValueString="local"/>
+        <attribute name="title" attributeType="String"/>
+        <relationship name="parsedContent" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="ParsedContent" inverseName="markdownFiles" inverseEntity="ParsedContent"/>
+        <relationship name="readingProgress" optional="YES" maxCount="1" deletionRule="Cascade" destinationEntity="ReadingProgress" inverseName="markdownFile" inverseEntity="ReadingProgress"/>
+        <relationship name="repository" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="GitRepository" inverseName="markdownFiles" inverseEntity="GitRepository"/>
+    </entity>
+    <entity name="ParsedContent" representedClassName="ParsedContent" syncable="YES" codeGenerationType="class">
+        <attribute name="fileId" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="lastParsed" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="plainText" attributeType="String" defaultValueString=""/>
+        <relationship name="contentSection" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="ContentSection" inverseName="parsedContent" inverseEntity="ContentSection"/>
+        <relationship name="markdownFiles" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MarkdownFile" inverseName="parsedContent" inverseEntity="MarkdownFile"/>
+    </entity>
+    <entity name="ReadingProgress" representedClassName="ReadingProgress" syncable="YES" codeGenerationType="class">
+        <attribute name="currentPosition" attributeType="Integer 32" defaultValueString="0" usesScalarValueType="YES"/>
+        <attribute name="fileId" attributeType="UUID" usesScalarValueType="NO"/>
+        <attribute name="isCompleted" attributeType="Boolean" defaultValueString="NO" usesScalarValueType="YES"/>
+        <attribute name="lastReadDate" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="totalDuration" attributeType="Double" defaultValueString="0.0" usesScalarValueType="YES"/>
+        <relationship name="bookMark" optional="YES" toMany="YES" deletionRule="Cascade" destinationEntity="Bookmark" inverseName="readingProgress" inverseEntity="Bookmark"/>
+        <relationship name="markdownFile" optional="YES" maxCount="1" deletionRule="Nullify" destinationEntity="MarkdownFile" inverseName="readingProgress" inverseEntity="MarkdownFile"/>
+    </entity>
+</model>
