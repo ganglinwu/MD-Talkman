@@ -132,6 +132,16 @@ struct VoiceSettingsView: View {
                 } header: {
                     Text("Current Settings")
                 }
+                
+                Section {
+                    NavigationLink("Audio Feedback Settings") {
+                        AudioFeedbackSettingsView(audioFeedback: ttsManager.getAudioFeedbackManager())
+                    }
+                } header: {
+                    Text("Audio Feedback")
+                } footer: {
+                    Text("Configure sound notifications for playback state changes and interactions.")
+                }
             }
             .navigationTitle("Voice Settings")
             .navigationBarTitleDisplayMode(.inline)

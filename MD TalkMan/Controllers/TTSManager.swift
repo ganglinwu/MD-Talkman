@@ -36,6 +36,7 @@ class TTSManager: NSObject, ObservableObject {
     
     private let synthesizer = AVSpeechSynthesizer()
     private var audioSession: AVAudioSession?
+    private let audioFeedback = AudioFeedbackManager()
     
     // Available enhanced voices
     private var enhancedVoices: [AVSpeechSynthesisVoice] = []
@@ -45,6 +46,7 @@ class TTSManager: NSObject, ObservableObject {
     private var currentParsedContent: ParsedContent?
     private var contentSections: [ContentSection] = []
     private var currentUtterance: AVSpeechUtterance?
+    private var utteranceStartPosition: Int = 0  // Track where current utterance starts
     
     // Navigation
     private var skippableSections: Set<Int> = []
@@ -198,6 +200,7 @@ class TTSManager: NSObject, ObservableObject {
               !plainText.isEmpty else {
             playbackState = .error("No content")
             errorMessage = "No content available for playback"
+            audioFeedback.playFeedback(for: .error)
             return
         }
         
@@ -228,12 +231,16 @@ class TTSManager: NSObject, ObservableObject {
         guard !textToSpeak.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             playbackState = .error("No content at position")
             errorMessage = "No content available at current position"
+            audioFeedback.playFeedback(for: .error)
             return
         }
         
         // Create utterance with enhanced settings
         currentUtterance = AVSpeechUtterance(string: textToSpeak)
         setupUtteranceParameters(currentUtterance!)
+        
+        // Remember where this utterance starts in the document
+        utteranceStartPosition = currentPosition
         
         // Start speaking with error handling
         do {
@@ -242,6 +249,7 @@ class TTSManager: NSObject, ObservableObject {
         } catch {
             playbackState = .error("Playback failed")
             errorMessage = "Failed to start playback: \(error.localizedDescription)"
+            audioFeedback.playFeedback(for: .error)
         }
     }
     
@@ -267,6 +275,7 @@ class TTSManager: NSObject, ObservableObject {
         synthesizer.stopSpeaking(at: .immediate)
         playbackState = .idle
         currentUtterance = nil
+        audioFeedback.playFeedback(for: .playStopped)
     }
     
     func rewind(seconds: TimeInterval = 5.0) {
@@ -352,6 +361,7 @@ class TTSManager: NSObject, ObservableObject {
                 self.isVoiceLoading = false
                 
                 print("🎵 Voice changed to: \(voice.name) (\(voice.language))")
+                self.audioFeedback.playFeedback(for: .voiceChanged)
                 
                 // If was playing, restart with new voice
                 if wasPlaying {
@@ -382,6 +392,10 @@ class TTSManager: NSObject, ObservableObject {
     
     func getAvailableVoices() -> [AVSpeechSynthesisVoice] {
         return enhancedVoices
+    }
+    
+    func getAudioFeedbackManager() -> AudioFeedbackManager {
+        return audioFeedback
     }
     
     private func setupUtteranceParameters(_ utterance: AVSpeechUtterance) {
@@ -425,8 +439,29 @@ class TTSManager: NSObject, ObservableObject {
             return ""
         }
         
-        let startIndex = plainText.index(plainText.startIndex, offsetBy: min(currentPosition, plainText.count))
-        return String(plainText[startIndex...])
+        let totalLength = plainText.count
+        let startPos = min(currentPosition, totalLength)
+        
+        // For memory efficiency, read in chunks instead of entire remaining text
+        // Use larger chunks for better TTS flow, but limit memory usage
+        let maxChunkSize = 50000  // ~50KB chunks - good balance of performance vs memory
+        let endPos = min(startPos + maxChunkSize, totalLength)
+        
+        guard startPos < endPos else { return "" }
+        
+        let startIndex = plainText.index(plainText.startIndex, offsetBy: startPos)
+        let endIndex = plainText.index(plainText.startIndex, offsetBy: endPos)
+        
+        return String(plainText[startIndex..<endIndex])  // ✅ Fixed: Only read needed chunk
+    }
+    
+    private func hasMoreContentToRead() -> Bool {
+        guard let parsedContent = currentParsedContent,
+              let plainText = parsedContent.plainText else {
+            return false
+        }
+        
+        return currentPosition < plainText.count
     }
     
     private func updateCurrentSectionIndex() {
@@ -475,6 +510,7 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
         DispatchQueue.main.async { [weak self] in
             self?.playbackState = .playing
             self?.errorMessage = nil
+            self?.audioFeedback.playFeedback(for: .playStarted)
         }
     }
     
@@ -485,14 +521,24 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
             if utterance.speechString.isEmpty {
                 self.playbackState = .error("No content to read")
                 self.errorMessage = "No content available for playback"
+                self.audioFeedback.playFeedback(for: .error)
             } else {
-                self.playbackState = .idle
-                
-                // Mark as completed if we've reached the end
-                if let markdownFile = self.currentMarkdownFile,
-                   let progress = markdownFile.readingProgress {
-                    progress.isCompleted = true
-                    self.saveProgress()
+                // Check if there's more content to read (for chunked reading)
+                if self.hasMoreContentToRead() {
+                    // Continue reading the next chunk automatically
+                    self.play()
+                } else {
+                    // Truly finished - mark as completed
+                    self.playbackState = .idle
+                    
+                    if let markdownFile = self.currentMarkdownFile,
+                       let progress = markdownFile.readingProgress {
+                        progress.isCompleted = true
+                        self.saveProgress()
+                        self.audioFeedback.playFeedback(for: .playCompleted)
+                    } else {
+                        self.audioFeedback.playFeedback(for: .playStopped)
+                    }
                 }
             }
         }
@@ -501,19 +547,28 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didPause utterance: AVSpeechUtterance) {
         DispatchQueue.main.async { [weak self] in
             self?.playbackState = .paused
+            self?.audioFeedback.playFeedback(for: .playPaused)
         }
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didContinue utterance: AVSpeechUtterance) {
         DispatchQueue.main.async { [weak self] in
             self?.playbackState = .playing
+            self?.audioFeedback.playFeedback(for: .playStarted)
         }
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, willSpeakRangeOfSpeechString characterRange: NSRange, utterance: AVSpeechUtterance) {
-        // Update current position
-        currentPosition += characterRange.location
+        // Calculate absolute position in document
+        // characterRange.location is relative to current utterance, not entire document
+        let previousSectionIndex = currentSectionIndex
+        currentPosition = utteranceStartPosition + characterRange.location  // ✅ Fixed: Set absolute position
         updateCurrentSectionIndex()
+        
+        // Check if we've moved to a new section
+        if currentSectionIndex != previousSectionIndex {
+            audioFeedback.playFeedback(for: .sectionChanged)
+        }
         
         // Save progress periodically (every 10 seconds approximately)
         if currentPosition % 500 == 0 { // Rough estimate

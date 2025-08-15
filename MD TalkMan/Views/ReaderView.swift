@@ -205,7 +205,10 @@ This framework will revolutionize how you build iOS apps.
             VStack(spacing: 16) {
                 // Primary Controls
                 HStack(spacing: 30) {
-                    Button(action: { ttsManager.rewind() }) {
+                    Button(action: { 
+                        ttsManager.getAudioFeedbackManager().playFeedback(for: .buttonTap)
+                        ttsManager.rewind() 
+                    }) {
                         Image(systemName: "gobackward.5")
                             .font(.title2)
                     }
@@ -221,7 +224,10 @@ This framework will revolutionize how you build iOS apps.
                     }
                     .disabled(ttsManager.playbackState == .preparing || ttsManager.playbackState == .loading)
                     
-                    Button(action: { ttsManager.stop() }) {
+                    Button(action: { 
+                        ttsManager.getAudioFeedbackManager().playFeedback(for: .buttonTap)
+                        ttsManager.stop() 
+                    }) {
                         Image(systemName: "stop.fill")
                             .font(.title2)
                     }
@@ -231,11 +237,13 @@ This framework will revolutionize how you build iOS apps.
                 // Navigation Controls
                 HStack(spacing: 20) {
                     Button("Previous Section") {
+                        ttsManager.getAudioFeedbackManager().playFeedback(for: .buttonTap)
                         ttsManager.skipToPreviousSection()
                     }
                     .disabled(ttsManager.currentSectionIndex <= 0)
                     
                     Button("Next Section") {
+                        ttsManager.getAudioFeedbackManager().playFeedback(for: .buttonTap)
                         ttsManager.skipToNextSection()
                     }
                     .disabled(ttsManager.currentSectionIndex >= (markdownFile.parsedContent?.contentSection?.count ?? 1) - 1)
@@ -245,6 +253,7 @@ This framework will revolutionize how you build iOS apps.
                 // Skip Controls
                 if ttsManager.canSkipCurrentSection() {
                     Button("Skip Technical Section") {
+                        ttsManager.getAudioFeedbackManager().playFeedback(for: .buttonTap)
                         ttsManager.skipToNextSection()
                     }
                     .foregroundColor(.orange)
@@ -284,13 +293,17 @@ This framework will revolutionize how you build iOS apps.
     }
     
     private func togglePlayback() {
+        ttsManager.getAudioFeedbackManager().playFeedback(for: .buttonTap)
+        
         switch ttsManager.playbackState {
         case .idle, .paused:
             ttsManager.play()
         case .playing:
             ttsManager.pause()
-        case .preparing:
+        case .preparing, .loading:
             break // Do nothing
+        case .error(_):
+            ttsManager.play() // Try to recover
         }
     }
     
