@@ -12,9 +12,12 @@ A SwiftUI app for hands-free markdown reading with Claude.ai integration, design
 ## Audio-First Design
 
 ### Text-to-Speech Implementation
+- Enhanced voice selection with premium iOS voices (Ava, Samantha, Alex)
 - Parse markdown → extract plain text (strip symbols, format code blocks as "code section")
 - Sentence/paragraph-based chunking for better scrubbing control
 - Bookmark system: save position by paragraph/section + timestamp
+- Premium audio parameters: pitch, volume, pre/post utterance delays
+- Driving-optimized audio session management for CarPlay
 
 ### Reading Controls
 - Play/pause functionality
@@ -186,21 +189,34 @@ class VoiceManager: ObservableObject {
 
 ## Text-to-Speech Implementation
 
-### TTS Manager (AVSpeechSynthesizer)
+### Enhanced TTS Manager (AVSpeechSynthesizer)
 ```swift
 class TTSManager: ObservableObject {
-    private let synthesizer = AVSpeechSynthesizer()
+    @Published var playbackState: TTSPlaybackState = .idle
+    @Published var selectedVoice: AVSpeechSynthesisVoice?
+    @Published var pitchMultiplier: Float = 1.0
+    @Published var volumeMultiplier: Float = 1.0
     
-    func speakText(_ text: String, rate: Float = 0.5) {
-        let utterance = AVSpeechUtterance(string: text)
-        utterance.rate = rate
-        utterance.voice = AVSpeechSynthesisVoice(language: "en-US")
-        synthesizer.speak(utterance)
+    private let synthesizer = AVSpeechSynthesizer()
+    private var enhancedVoices: [AVSpeechSynthesisVoice] = []
+    
+    private func getBestAvailableVoice() -> AVSpeechSynthesisVoice? {
+        let preferredVoices = [
+            "com.apple.voice.enhanced.en-US.Ava",      // Neural voice
+            "com.apple.voice.enhanced.en-US.Samantha", // Enhanced voice
+            "com.apple.voice.enhanced.en-US.Alex"      // Classic enhanced
+        ]
+        // Premium voice selection logic...
     }
     
-    func pause() { synthesizer.pauseSpeaking(at: .immediate) }
-    func resume() { synthesizer.continueSpeaking() }
-    func stop() { synthesizer.stopSpeaking(at: .immediate) }
+    private func setupUtteranceParameters(_ utterance: AVSpeechUtterance) {
+        utterance.voice = selectedVoice ?? getBestAvailableVoice()
+        utterance.rate = playbackSpeed
+        utterance.pitchMultiplier = pitchMultiplier
+        utterance.volume = volumeMultiplier
+        utterance.preUtteranceDelay = 0.1
+        utterance.postUtteranceDelay = 0.1
+    }
 }
 ```
 
@@ -272,7 +288,8 @@ ContentView
 - Complete 6-entity data model with perfect relationships
 - Type-safe enums with UI-friendly extensions (SyncStatus, ContentSectionType)  
 - Production-ready PersistenceController with preview support
-- Comprehensive MockData with realistic samples
+- Real Learning Content Integration with actual Swift markdown files
+- Developer mode for data management and testing
 
 **Markdown Processing Pipeline**
 - MarkdownParser: Converts markdown to TTS-friendly text
@@ -280,16 +297,21 @@ ContentView
 - Removes syntax and creates structured ContentSection objects
 - Smart skippable content detection (code blocks, technical content)
 
-**Text-to-Speech System**
-- TTSManager: Full playback control with AVSpeechSynthesizer
+**Enhanced Text-to-Speech System**
+- TTSManager: Full playback control with premium voice selection
 - Variable speed (0.5x-2.0x), rewind, section navigation
+- Premium voice quality: Enhanced/Neural voices (Ava, Samantha, Alex)
+- Advanced audio parameters: pitch, volume, utterance delays
+- Audio session optimized for driving (.spokenAudio, CarPlay support)
 - Automatic progress tracking and bookmark support
-- Audio session management for background playback
+- Real-time position tracking with Core Data persistence
 
 **SwiftUI Interface**
 - ContentView: Repository browser with Core Data integration
 - RepositoryDetailView: File listing with sync status indicators
-- ReaderView: Complete TTS interface with playback controls
+- ReaderView: Complete TTS interface with enhanced playback controls
+- VoiceSettingsView: Premium voice selection and audio customization
+- SettingsView: Developer mode toggle and data management
 - Clean navigation hierarchy with proper state management
 
 **Comprehensive Testing**
@@ -312,9 +334,12 @@ Markdown: - List item → TTS: "• List item."
 ### 🏗️ Architecture Highlights
 - Enterprise-grade Core Data relationships with proper delete rules
 - Singleton pattern with dependency injection for testing
-- Observable TTS manager with @Published state
+- Observable TTS manager with @Published state for real-time UI updates
 - Type-safe enum extensions for database string fields
+- Premium voice architecture with automatic fallback selection
+- Developer mode with granular data management controls
 - Comprehensive error handling and edge case management
+- Audio session management optimized for automotive use
 
 ## Required Dependencies
 - **SwiftGit2**: Git operations

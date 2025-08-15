@@ -13,19 +13,22 @@ MD TalkMan/
 ├── Views/                         # SwiftUI Views (Presentation Layer)
 │   ├── ContentView.swift         # Main repository browser
 │   ├── RepositoryDetailView.swift # File listing within repositories
-│   └── ReaderView.swift          # TTS reader interface with controls
+│   ├── ReaderView.swift          # TTS reader interface with controls
+│   ├── VoiceSettingsView.swift   # Premium voice selection and audio customization
+│   └── SettingsView.swift        # Developer mode and app settings
 │
 ├── Controllers/                   # Business Logic and State Management
 │   ├── PersistenceController.swift # Core Data stack management
-│   └── TTSManager.swift          # Text-to-speech playback controller
+│   ├── TTSManager.swift          # Text-to-speech playback controller
+│   └── SettingsManager.swift     # Developer mode and app settings management
 │
 ├── Models/                        # Data Models and Core Data Schema
 │   ├── DataModel.xcdatamodeld/   # Core Data model definition
-│   └── CoreDataEnums.swift      # Type-safe enums for Core Data
+│   ├── CoreDataEnums.swift      # Type-safe enums for Core Data
+│   └── MockData.swift           # Real learning content and sample data
 │
 ├── Utils/                         # Utilities and Helper Classes
-│   ├── MarkdownParser.swift     # Markdown to TTS conversion
-│   └── MockData.swift           # Sample data for development/testing
+│   └── MarkdownParser.swift     # Markdown to TTS conversion
 │
 └── Assets.xcassets/              # App icons, colors, and other assets
 
@@ -61,24 +64,28 @@ Documentation/
 - **Presentation logic only** - no business logic
 - **ContentView**: Repository browser with Core Data @FetchRequest
 - **RepositoryDetailView**: File listing with navigation to reader
-- **ReaderView**: Complete TTS interface with real-time controls
+- **ReaderView**: Complete TTS interface with enhanced playback controls
+- **VoiceSettingsView**: Premium voice selection and audio customization
+- **SettingsView**: Developer mode toggle and data management UI
 
 ### Controllers Layer  
 - **Business logic and state management**
 - **PersistenceController**: Core Data stack, singleton pattern
-- **TTSManager**: Observable object for TTS state (@Published properties)
+- **TTSManager**: Observable object for TTS state with premium voice selection
+- **SettingsManager**: Developer mode and app configuration management
 - Handles user actions and coordinates between views and models
 
 ### Models Layer
 - **Data definitions and Core Data schema**
 - **DataModel.xcdatamodeld**: 6-entity Core Data model
 - **CoreDataEnums.swift**: Type-safe Swift enums with Core Data integration
+- **MockData.swift**: Real learning content integration and sample data creation
 
 ### Utils Layer
 - **Pure functions and utilities** 
-- **MarkdownParser**: Stateless markdown processing
-- **MockData**: Development and testing sample data
+- **MarkdownParser**: Stateless markdown processing for TTS conversion
 - No dependencies on UI or state management
+- Focus on reusable, testable functionality
 
 ## Design Patterns Used
 
@@ -91,9 +98,12 @@ static var preview = PersistenceController(inMemory: true)
 
 ### 2. **Observer Pattern**  
 ```swift
-// TTSManager as ObservableObject
+// TTSManager as ObservableObject with enhanced voice control
 @Published var playbackState: TTSPlaybackState
 @Published var currentPosition: Int
+@Published var selectedVoice: AVSpeechSynthesisVoice?
+@Published var pitchMultiplier: Float = 1.0
+@Published var volumeMultiplier: Float = 1.0
 ```
 
 ### 3. **Dependency Injection**
