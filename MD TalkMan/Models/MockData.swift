@@ -10,6 +10,8 @@ import Foundation
 
 struct MockData {
     static func createSampleData(in context: NSManagedObjectContext) {
+        print("🏗️ MockData.createSampleData: Starting to create sample data")
+        
         // Create sample repository
         let sampleRepo = GitRepository(context: context)
         sampleRepo.id = UUID()
@@ -44,55 +46,49 @@ struct MockData {
     }
     
     private static func createSampleFiles(in context: NSManagedObjectContext, repository: GitRepository) -> [MarkdownFile] {
-        // Load real markdown files from learning_points directory
-        let learningPointsPath = "/Users/ganglinwu/code/swiftui/markdown/learning_points"
-        let fileManager = FileManager.default
+        print("📁 MockData.createSampleFiles: Creating sample files with embedded content")
+        
+        // Create realistic Swift learning files with embedded content
+        let sampleFiles = [
+            ("SwiftUI Fundamentals", "swift-swiftui-fundamentals.md", swiftUIFundamentalsContent),
+            ("Memory Management & ARC", "swift-memory-management.md", memoryManagementContent),
+            ("iOS App Architecture", "swift-app-architecture.md", appArchitectureContent),
+            ("Networking & API Calls", "swift-networking.md", networkingContent),
+            ("Core Data Essentials", "swift-coredata.md", coreDataContent),
+            ("Advanced Swift Features", "swift-advanced-features.md", advancedSwiftContent),
+            ("UIKit Integration", "swift-uikit-bridge.md", uikitBridgeContent),
+            ("Performance Optimization", "swift-performance.md", performanceContent),
+            ("Testing Best Practices", "swift-testing.md", testingContent),
+            ("Concurrency & Async/Await", "swift-concurrency.md", concurrencyContent),
+            ("SwiftUI Navigation", "swift-navigation.md", navigationContent),
+            ("Data Binding Patterns", "swift-data-binding.md", dataBindingContent),
+            ("Error Handling", "swift-error-handling.md", errorHandlingContent),
+            ("Design Patterns in iOS", "swift-design-patterns.md", designPatternsContent),
+            ("Debugging Techniques", "swift-debugging.md", debuggingContent)
+        ]
         
         var markdownFiles: [MarkdownFile] = []
         
-        do {
-            let fileURLs = try fileManager.contentsOfDirectory(atPath: learningPointsPath)
-            let mdFiles = fileURLs.filter { $0.hasSuffix(".md") }.sorted()
+        for (index, (title, fileName, content)) in sampleFiles.enumerated() {
+            let file = MarkdownFile(context: context)
+            file.id = UUID()
+            file.title = title
+            file.filePath = "embedded://\(fileName)"
+            file.gitFilePath = "learning_points/\(fileName)"
+            file.repository = repository
+            file.repositoryId = repository.id
+            file.lastCommitHash = "swift\(Int.random(in: 100...999))"
+            file.lastModified = Date().addingTimeInterval(-Double.random(in: 0...604800))
+            file.fileSize = Int64(content.count)
+            file.syncStatusEnum = SyncStatus.synced
+            file.hasLocalChanges = false
             
-            for fileName in mdFiles { // Load all available markdown files
-                let file = MarkdownFile(context: context)
-                file.id = UUID()
-                
-                // Create readable title from filename
-                let title = createReadableTitle(from: fileName)
-                file.title = title
-                
-                file.filePath = "\(learningPointsPath)/\(fileName)"
-                file.gitFilePath = "learning_points/\(fileName)"
-                file.repository = repository
-                file.repositoryId = repository.id
-                file.lastCommitHash = "swift\(Int.random(in: 100...999))"
-                file.lastModified = Date().addingTimeInterval(-Double.random(in: 0...604800)) // Random within last week
-                
-                // Get actual file size
-                if let attributes = try? fileManager.attributesOfItem(atPath: "\(learningPointsPath)/\(fileName)"),
-                   let fileSize = attributes[.size] as? Int64 {
-                    file.fileSize = fileSize
-                } else {
-                    file.fileSize = Int64.random(in: 500...3000)
-                }
-                
-                file.syncStatusEnum = SyncStatus.synced // Learning materials are synced
-                file.hasLocalChanges = false
-                
-                markdownFiles.append(file)
-                
-                print("📚 Added learning file: \(title)")
-            }
+            markdownFiles.append(file)
             
-        } catch {
-            print("❌ Error loading learning files: \(error)")
-            // Fall back to placeholder files if real files can't be loaded
-            return createPlaceholderFiles(in: context, repository: repository)
+            print("📚 [\(index + 1)/\(sampleFiles.count)] Created: \(title) (\(content.count) bytes)")
         }
         
-        print("✅ Successfully loaded \(markdownFiles.count) Swift learning files")
-        print("📖 Topics include: iOS development, SwiftUI, memory management, networking, and advanced Swift concepts")
+        print("✅ Successfully created \(markdownFiles.count) Swift learning files")
         return markdownFiles
     }
     
@@ -177,21 +173,69 @@ struct MockData {
             return
         }
         
-        do {
-            // Read the actual markdown content
-            let markdownContent = try String(contentsOfFile: filePath, encoding: .utf8)
+        // Get embedded content based on file path
+        let markdownContent = getEmbeddedContent(for: filePath)
+        
+        // Parse it using our MarkdownParser
+        let parser = MarkdownParser()
+        parser.processAndSaveMarkdownFile(file, content: markdownContent, in: context)
+        
+        print("✅ Parsed embedded content for: \(file.title ?? "Unknown") (\(markdownContent.count) characters)")
+    }
+    
+    private static func getEmbeddedContent(for filePath: String) -> String {
+        // Extract the filename from the embedded path
+        if filePath.contains("swiftui-fundamentals") {
+            return swiftUIFundamentalsContent
+        } else if filePath.contains("memory-management") {
+            return memoryManagementContent
+        } else if filePath.contains("app-architecture") {
+            return appArchitectureContent
+        } else if filePath.contains("networking") {
+            return networkingContent
+        } else if filePath.contains("coredata") {
+            return coreDataContent
+        } else if filePath.contains("advanced-features") {
+            return advancedSwiftContent
+        } else if filePath.contains("uikit-bridge") {
+            return uikitBridgeContent
+        } else if filePath.contains("performance") {
+            return performanceContent
+        } else if filePath.contains("testing") {
+            return testingContent
+        } else if filePath.contains("concurrency") {
+            return concurrencyContent
+        } else if filePath.contains("navigation") {
+            return navigationContent
+        } else if filePath.contains("data-binding") {
+            return dataBindingContent
+        } else if filePath.contains("error-handling") {
+            return errorHandlingContent
+        } else if filePath.contains("design-patterns") {
+            return designPatternsContent
+        } else if filePath.contains("debugging") {
+            return debuggingContent
+        } else {
+            // Default fallback content
+            return """
+            # Swift Learning Content
             
-            // Parse it using our MarkdownParser
-            let parser = MarkdownParser()
-            parser.processAndSaveMarkdownFile(file, content: markdownContent, in: context)
+            This is a sample Swift learning article covering important iOS development concepts.
             
-            print("✅ Parsed real content for: \(file.title ?? "Unknown")")
+            ## Overview
             
-        } catch {
-            print("❌ Error reading \(file.title ?? "unknown"): \(error)")
+            This article provides practical examples and best practices for Swift development.
             
-            // Fall back to placeholder content
-            createPlaceholderParsedContent(in: context, for: file)
+            ## Key Points
+            
+            - Learn modern Swift techniques
+            - Understand iOS development patterns  
+            - Practice with real examples
+            
+            ## Conclusion
+            
+            Mastering these concepts will make you a better iOS developer.
+            """
         }
     }
     
@@ -229,3 +273,500 @@ struct MockData {
         return ("Sample Article", "sample.md", "# Sample Content\n\nThis is a sample markdown file for testing.")
     }
 }
+
+// MARK: - Embedded Content for Sample Files
+private let swiftUIFundamentalsContent = """
+# SwiftUI Fundamentals
+
+SwiftUI is Apple's modern declarative framework for building user interfaces across all Apple platforms.
+
+## Key Concepts
+
+### Declarative Syntax
+SwiftUI uses a **declarative approach** where you describe what the UI should look like, not how to build it.
+
+```swift
+struct ContentView: View {
+    var body: some View {
+        Text("Hello, SwiftUI!")
+            .font(.title)
+            .foregroundColor(.blue)
+    }
+}
+```
+
+### Views and Modifiers
+- Views are the building blocks of SwiftUI
+- Modifiers transform and style views
+- Order matters with modifiers
+
+### State Management
+SwiftUI provides several property wrappers for state management:
+
+- `@State` for local view state
+- `@Binding` for two-way connections
+- `@ObservedObject` for external objects
+- `@StateObject` for owned objects
+- `@EnvironmentObject` for shared data
+
+## Best Practices
+
+1. Keep views small and focused
+2. Extract complex logic into view models
+3. Use proper state management patterns
+4. Leverage SwiftUI's data flow principles
+
+SwiftUI makes iOS development more intuitive and powerful than ever before.
+"""
+
+private let memoryManagementContent = """
+# Memory Management & ARC
+
+Automatic Reference Counting (ARC) is Swift's memory management system that automatically handles allocation and deallocation of memory.
+
+## How ARC Works
+
+ARC tracks how many references point to each object:
+- When references reach zero, the object is deallocated
+- No garbage collection overhead
+- Deterministic deallocation
+
+## Strong, Weak, and Unowned References
+
+### Strong References (Default)
+```swift
+class Person {
+    let name: String
+    var apartment: Apartment?
+}
+```
+
+### Weak References
+```swift
+class Apartment {
+    weak var tenant: Person?  // Prevents retain cycles
+}
+```
+
+### Unowned References
+```swift
+class Customer {
+    unowned let creditCard: CreditCard  // Always expected to have a value
+}
+```
+
+## Common Memory Issues
+
+### Retain Cycles
+```swift
+// BAD - Creates retain cycle
+class Parent {
+    var child: Child?
+}
+class Child {
+    var parent: Parent?  // Should be weak!
+}
+
+// GOOD - Breaks retain cycle
+class Child {
+    weak var parent: Parent?
+}
+```
+
+### Closure Capture Lists
+```swift
+// BAD - Creates retain cycle
+self.completionHandler = {
+    self.updateUI()
+}
+
+// GOOD - Uses capture list
+self.completionHandler = { [weak self] in
+    self?.updateUI()
+}
+```
+
+## Memory Debugging Tools
+
+1. **Instruments** - Track memory usage and leaks
+2. **Memory Graph Debugger** - Visualize object relationships
+3. **Address Sanitizer** - Detect memory errors
+
+Understanding ARC is crucial for building efficient iOS applications.
+"""
+
+private let appArchitectureContent = """
+# iOS App Architecture Patterns
+
+Choosing the right architecture is crucial for maintainable and scalable iOS apps.
+
+## MVC (Model-View-Controller)
+
+Apple's traditional pattern:
+- **Model**: Data and business logic
+- **View**: UI components
+- **Controller**: Coordinates between Model and View
+
+```swift
+class WeatherViewController: UIViewController {
+    @IBOutlet weak var temperatureLabel: UILabel!
+    private let weatherService = WeatherService()
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        loadWeatherData()
+    }
+}
+```
+
+## MVVM (Model-View-ViewModel)
+
+Popular with SwiftUI and Combine:
+- **ViewModel**: Prepares data for the view
+- Enables better testability
+- Supports data binding
+
+```swift
+class WeatherViewModel: ObservableObject {
+    @Published var temperature: String = ""
+    @Published var isLoading = false
+    
+    private let weatherService: WeatherService
+    
+    func loadWeather() {
+        isLoading = true
+        weatherService.getCurrentWeather { [weak self] result in
+            DispatchQueue.main.async {
+                self?.isLoading = false
+                // Update properties
+            }
+        }
+    }
+}
+```
+
+## Best Practices
+
+Start simple and evolve your architecture as your app grows.
+"""
+
+private let networkingContent = """
+# Networking & API Calls in iOS
+
+Modern iOS networking using URLSession, Combine, and async/await.
+
+## URLSession Basics
+
+```swift
+func fetchData() {
+    let url = URL(string: "https://api.example.com/data")!
+    
+    URLSession.shared.dataTask(with: url) { data, response, error in
+        if let data = data {
+            // Process data
+            DispatchQueue.main.async {
+                // Update UI
+            }
+        }
+    }.resume()
+}
+```
+
+## Modern Async/Await Approach
+
+```swift
+func fetchUserData() async throws -> User {
+    let url = URL(string: "https://api.example.com/user")!
+    let (data, _) = try await URLSession.shared.data(from: url)
+    return try JSONDecoder().decode(User.self, from: data)
+}
+
+// Usage
+Task {
+    do {
+        let user = try await fetchUserData()
+        // Update UI
+    } catch {
+        // Handle error
+    }
+}
+```
+
+Proper networking is essential for modern iOS apps.
+"""
+
+private let coreDataContent = """
+# Core Data Essentials
+
+Core Data is Apple's object graph and persistence framework for iOS and macOS applications.
+
+## Core Data Stack
+
+The main components:
+- **NSManagedObjectModel**: Describes your data model
+- **NSPersistentStoreCoordinator**: Manages the persistent store
+- **NSManagedObjectContext**: Your working scratchpad for objects
+
+```swift
+lazy var persistentContainer: NSPersistentContainer = {
+    let container = NSPersistentContainer(name: "DataModel")
+    container.loadPersistentStores { _, error in
+        if let error = error {
+            fatalError("Core Data error: \\(error)")
+        }
+    }
+    return container
+}()
+```
+
+Core Data provides powerful data persistence capabilities when used correctly.
+"""
+
+private let advancedSwiftContent = """
+# Advanced Swift Features
+
+Explore powerful Swift language features that can make your code more elegant and efficient.
+
+## Generics
+
+Write flexible, reusable code:
+
+```swift
+// Generic function
+func swapValues<T>(_ a: inout T, _ b: inout T) {
+    let temp = a
+    a = b
+    b = temp
+}
+
+// Generic types
+struct Stack<Element> {
+    private var items: [Element] = []
+    
+    mutating func push(_ item: Element) {
+        items.append(item)
+    }
+    
+    mutating func pop() -> Element? {
+        return items.popLast()
+    }
+}
+```
+
+These advanced features help you write more expressive and maintainable Swift code.
+"""
+
+private let uikitBridgeContent = """
+# UIKit Integration with SwiftUI
+
+Bridge the gap between UIKit and SwiftUI for maximum flexibility.
+
+## UIViewRepresentable
+
+Wrap UIKit views for use in SwiftUI:
+
+```swift
+struct MapViewRepresentable: UIViewRepresentable {
+    @Binding var region: MKCoordinateRegion
+    
+    func makeUIView(context: Context) -> MKMapView {
+        let mapView = MKMapView()
+        mapView.delegate = context.coordinator
+        return mapView
+    }
+    
+    func updateUIView(_ mapView: MKMapView, context: Context) {
+        mapView.setRegion(region, animated: true)
+    }
+}
+```
+
+Bridging UIKit and SwiftUI allows you to leverage the best of both frameworks.
+"""
+
+private let performanceContent = """
+# Performance Optimization in iOS
+
+Optimize your iOS apps for smooth user experiences and efficient resource usage.
+
+## Profiling with Instruments
+
+Use Xcode's Instruments to identify bottlenecks:
+
+- **Time Profiler**: Find CPU-intensive code
+- **Allocations**: Track memory usage
+- **Leaks**: Detect memory leaks
+
+Regular profiling and optimization ensure your app performs well across all devices.
+"""
+
+private let testingContent = """
+# Testing Best Practices in iOS
+
+Comprehensive testing ensures code quality and prevents regressions.
+
+## Unit Testing Fundamentals
+
+```swift
+import XCTest
+@testable import MyApp
+
+class CalculatorTests: XCTestCase {
+    var calculator: Calculator!
+    
+    override func setUp() {
+        super.setUp()
+        calculator = Calculator()
+    }
+    
+    func testAddition() {
+        // Given
+        let result = calculator.add(5.0, 3.0)
+        
+        // Then
+        XCTAssertEqual(result, 8.0, accuracy: 0.001)
+    }
+}
+```
+
+Good testing practices lead to more reliable and maintainable code.
+"""
+
+private let concurrencyContent = """
+# Concurrency & Async/Await
+
+Modern Swift concurrency makes asynchronous programming safer and more intuitive.
+
+## Async/Await Basics
+
+```swift
+func fetchUserProfile(id: String) async throws -> UserProfile {
+    let url = URL(string: "https://api.example.com/users/\\(id)")!
+    let (data, _) = try await URLSession.shared.data(from: url)
+    return try JSONDecoder().decode(UserProfile.self, from: data)
+}
+```
+
+Swift's modern concurrency model makes writing safe, efficient asynchronous code much easier.
+"""
+
+private let navigationContent = """
+# SwiftUI Navigation Patterns
+
+Master navigation in SwiftUI apps across different iOS versions and use cases.
+
+## NavigationStack (iOS 16+)
+
+```swift
+struct ContentView: View {
+    @State private var navigationPath = NavigationPath()
+    
+    var body: some View {
+        NavigationStack(path: $navigationPath) {
+            List {
+                NavigationLink("Profile", value: NavigationDestination.profile)
+                NavigationLink("Settings", value: NavigationDestination.settings)
+            }
+        }
+    }
+}
+```
+
+Proper navigation architecture creates intuitive user experiences.
+"""
+
+private let dataBindingContent = """
+# Data Binding Patterns in SwiftUI
+
+Master SwiftUI's powerful data binding system for reactive user interfaces.
+
+## Property Wrappers Overview
+
+SwiftUI provides several property wrappers for different data binding scenarios:
+
+```swift
+struct ContentView: View {
+    @State private var localValue = ""           // Local view state
+    @Binding var sharedValue: String             // Two-way binding
+    @ObservedObject var viewModel: UserViewModel // External object
+    @StateObject private var manager = DataManager() // Owned object
+}
+```
+
+Mastering SwiftUI's binding system enables reactive, maintainable user interfaces.
+"""
+
+private let errorHandlingContent = """
+# Error Handling in Swift and iOS
+
+Robust error handling is essential for creating reliable iOS applications.
+
+## Swift Error Handling Fundamentals
+
+```swift
+enum NetworkError: Error, LocalizedError {
+    case invalidURL
+    case noData
+    case serverError(statusCode: Int)
+    
+    var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "The URL is invalid"
+        case .noData:
+            return "No data received from server"
+        case .serverError(let statusCode):
+            return "Server error with status code: \\(statusCode)"
+        }
+    }
+}
+```
+
+Proper error handling makes your app more reliable and provides better user experiences.
+"""
+
+private let designPatternsContent = """
+# Design Patterns in iOS Development
+
+Learn essential design patterns that improve code organization and maintainability.
+
+## Model-View-ViewModel (MVVM)
+
+Perfect for SwiftUI and data binding:
+
+```swift
+class UserProfileViewModel: ObservableObject {
+    @Published var user: User?
+    @Published var isLoading = false
+    
+    @MainActor
+    func loadUser(id: String) async {
+        isLoading = true
+        // Load user logic
+        isLoading = false
+    }
+}
+```
+
+Design patterns provide proven solutions to common problems.
+"""
+
+private let debuggingContent = """
+# Advanced Debugging Techniques in iOS
+
+Master debugging tools and techniques to efficiently identify and fix issues.
+
+## Xcode Debugger Essentials
+
+### LLDB Commands
+
+```swift
+// Basic debugging commands
+(lldb) po variable         // Print object description
+(lldb) p variable          // Print variable value
+(lldb) bt                  // Show stack trace
+(lldb) continue           // Continue execution
+```
+
+Mastering these debugging techniques will make you much more efficient at identifying and fixing issues.
+"""
