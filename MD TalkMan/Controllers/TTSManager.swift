@@ -444,6 +444,9 @@ class TTSManager: NSObject, ObservableObject {
         let totalLength = plainText.count
         let startPos = min(currentPosition, totalLength)
         
+        // Check if we're at or past the end
+        guard startPos < totalLength else { return "" }
+        
         // For memory efficiency, read in chunks instead of entire remaining text
         // Use larger chunks for better TTS flow, but limit memory usage
         let maxChunkSize = 50000  // ~50KB chunks - good balance of performance vs memory
@@ -454,7 +457,16 @@ class TTSManager: NSObject, ObservableObject {
         let startIndex = plainText.index(plainText.startIndex, offsetBy: startPos)
         let endIndex = plainText.index(plainText.startIndex, offsetBy: endPos)
         
-        return String(plainText[startIndex..<endIndex])  // ✅ Fixed: Only read needed chunk
+        let textChunk = String(plainText[startIndex..<endIndex])
+        
+        // Additional safety: don't return tiny fragments that could cause loops
+        let trimmedChunk = textChunk.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedChunk.count < 10 && startPos + textChunk.count >= totalLength {
+            // This is a tiny fragment at the end - mark as complete
+            return ""
+        }
+        
+        return textChunk
     }
     
     private func hasMoreContentToRead() -> Bool {
@@ -464,6 +476,18 @@ class TTSManager: NSObject, ObservableObject {
         }
         
         return currentPosition < plainText.count
+    }
+    
+    private func isAtEndOfContent() -> Bool {
+        guard let parsedContent = currentParsedContent,
+              let plainText = parsedContent.plainText else {
+            return true
+        }
+        
+        // Check if we're within 100 characters of the end to prevent infinite loops
+        // This handles edge cases where tiny fragments remain
+        let remainingCharacters = plainText.count - currentPosition
+        return remainingCharacters <= 100
     }
     
     private func updateCurrentSectionIndex() {
@@ -529,10 +553,14 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
                 if self.userRequestedStop {
                     self.playbackState = .idle
                     self.audioFeedback.playFeedback(for: .playStopped)
-                } else if self.hasMoreContentToRead() {
-                    // Continue reading the next chunk automatically
-                    self.play()
-                } else {
+                    return
+                }
+                
+                // Update position to end of current utterance
+                self.currentPosition = self.utteranceStartPosition + utterance.speechString.count
+                
+                // Check if we've reached the actual end of content
+                if !self.hasMoreContentToRead() || self.isAtEndOfContent() {
                     // Truly finished - mark as completed
                     self.playbackState = .idle
                     
@@ -544,6 +572,9 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
                     } else {
                         self.audioFeedback.playFeedback(for: .playStopped)
                     }
+                } else {
+                    // Continue reading the next chunk automatically
+                    self.play()
                 }
             }
         }
