@@ -8,6 +8,7 @@
 import AudioToolbox
 import AVFoundation
 import Foundation
+import UIKit
 
 // MARK: - Audio Feedback Types
 enum AudioFeedbackType {
