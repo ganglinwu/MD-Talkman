@@ -19,13 +19,14 @@ MD TalkMan/
 │
 ├── Controllers/                   # Business Logic and State Management
 │   ├── PersistenceController.swift # Core Data stack management
-│   ├── TTSManager.swift          # Text-to-speech playback controller
-│   └── SettingsManager.swift     # Developer mode and app settings management
+│   ├── TTSManager.swift          # Text-to-speech playback controller with haptic feedback
+│   ├── SettingsManager.swift     # Developer mode and app settings management
+│   └── AudioFeedbackManager.swift # Haptic and audio feedback system
 │
 ├── Models/                        # Data Models and Core Data Schema
 │   ├── DataModel.xcdatamodeld/   # Core Data model definition
 │   ├── CoreDataEnums.swift      # Type-safe enums for Core Data
-│   └── MockData.swift           # Real learning content and sample data
+│   └── MockData.swift           # Embedded Swift learning content (15 articles)
 │
 ├── Utils/                         # Utilities and Helper Classes
 │   └── MarkdownParser.swift     # Markdown to TTS conversion

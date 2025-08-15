@@ -20,15 +20,17 @@ A SwiftUI app for hands-free markdown reading with Claude.ai integration, design
 - Driving-optimized audio session management for CarPlay
 
 ### Reading Controls
-- Play/pause functionality
+- Play/pause functionality with single-tap stop button
 - Scrub backwards 5 seconds  
 - Skip sections (especially technical content with code blocks)
 - Section navigation using markdown headers
-- Speed Control: 0.5x to 2.0x playback speed
+- Speed Control: 0.5x to 2.0x playback speed (defaults to 1.0x natural speech)
 - Progress tracking with resume capability
+- Haptic feedback for accessibility and hands-free operation
 
 ### Hands-Free Controls
 - Large touch targets for basic controls
+- Haptic and audio feedback for TTS state changes
 - Voice commands via iOS Shortcuts integration
 - CarPlay integration for steering wheel controls
 - Background audio session for continuous playback
@@ -142,6 +144,48 @@ func syncRepository() {
 - Branch-based Claude experiments
 - Collaboration through GitHub features
 
+## Content Architecture
+
+### Embedded Content System
+The app now uses an embedded content architecture that eliminates iOS sandbox limitations and provides reliable content delivery.
+
+**Key Features:**
+- **15 Comprehensive Articles**: High-quality Swift learning content embedded directly in the app
+- **iOS Sandbox Compatible**: No external file dependencies or permissions required
+- **Reliable Content Delivery**: Always available, no network or filesystem issues
+- **TTS-Optimized**: Content specifically formatted for clear audio narration
+
+**Content Topics Covered:**
+- SwiftUI Fundamentals & Navigation Patterns
+- Memory Management & ARC
+- iOS App Architecture (MVC, MVVM, Clean Architecture)
+- Networking & API Integration with async/await
+- Core Data & Performance Optimization  
+- Advanced Swift Features (Generics, Protocols, Property Wrappers)
+- UIKit Integration with SwiftUI
+- Testing Best Practices & Debugging Techniques
+- Concurrency & Error Handling
+- Design Patterns for iOS Development
+
+**Technical Implementation:**
+```swift
+// Content mapping system
+private static func getEmbeddedContent(for filePath: String) -> String {
+    if filePath.contains("swiftui-fundamentals") {
+        return swiftUIFundamentalsContent
+    } else if filePath.contains("memory-management") {
+        return memoryManagementContent
+    }
+    // ... additional mappings for all 15 topics
+}
+```
+
+**Benefits:**
+- **Consistent Experience**: Content always available regardless of network/storage state
+- **Educational Quality**: Each article 500-2000+ words with realistic code examples
+- **Audio-First Design**: Content structured for optimal TTS narration flow
+- **No Dependencies**: Eliminates external file requirements and permissions
+
 ## Claude.ai Integration
 
 ### Voice Interaction Flow
@@ -248,13 +292,14 @@ ContentView
 
 ## Implementation Plan
 
-### Phase 1: Core Audio & File System ✅ COMPLETED
+### Phase 1: Core Audio & Content System ✅ COMPLETED
 - [x] Set up SwiftUI project with Core Data
 - [x] Implement markdown parsing with TTS conversion
-- [x] Build basic reader UI with TTS controls
+- [x] Build enhanced reader UI with TTS controls and haptic feedback
 - [x] Create comprehensive test suite (21 unit tests + integration + UI tests)
-- [x] Build file management system with local storage
-- [x] Create project structure and documentation
+- [x] Build embedded content system with 15 Swift learning articles
+- [x] Resolve iOS sandbox limitations with embedded architecture
+- [x] Create project structure and comprehensive documentation
 
 ### Phase 2: GitHub Integration  
 - [ ] Add GitHub OAuth authentication
@@ -288,7 +333,7 @@ ContentView
 - Complete 6-entity data model with perfect relationships
 - Type-safe enums with UI-friendly extensions (SyncStatus, ContentSectionType)  
 - Production-ready PersistenceController with preview support
-- Real Learning Content Integration with actual Swift markdown files
+- Embedded Content Integration with 15 comprehensive Swift learning articles
 - Developer mode for data management and testing
 
 **Markdown Processing Pipeline**
@@ -299,12 +344,14 @@ ContentView
 
 **Enhanced Text-to-Speech System**
 - TTSManager: Full playback control with premium voice selection
-- Variable speed (0.5x-2.0x), rewind, section navigation
+- Variable speed (0.5x-2.0x, defaults to 1.0x natural speech), rewind, section navigation
+- Single-tap stop button with proper user stop tracking
 - Premium voice quality: Enhanced/Neural voices (Ava, Samantha, Alex)
 - Advanced audio parameters: pitch, volume, utterance delays
 - Audio session optimized for driving (.spokenAudio, CarPlay support)
 - Automatic progress tracking and bookmark support
 - Real-time position tracking with Core Data persistence
+- Haptic feedback for accessibility and hands-free operation
 
 **SwiftUI Interface**
 - ContentView: Repository browser with Core Data integration
