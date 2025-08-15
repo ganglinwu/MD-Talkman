@@ -10,7 +10,7 @@ import Foundation
 import CoreData
 
 // MARK: - TTS Playback State
-enum TTSPlaybackState {
+enum TTSPlaybackState: Equatable {
     case idle
     case playing
     case paused
@@ -26,7 +26,7 @@ class TTSManager: NSObject, ObservableObject {
     @Published var playbackState: TTSPlaybackState = .idle
     @Published var currentPosition: Int = 0
     @Published var totalDuration: TimeInterval = 0
-    @Published var playbackSpeed: Float = 0.5
+    @Published var playbackSpeed: Float = 1.0
     @Published var currentSectionIndex: Int = 0
     @Published var selectedVoice: AVSpeechSynthesisVoice?
     @Published var pitchMultiplier: Float = 1.0
@@ -47,6 +47,7 @@ class TTSManager: NSObject, ObservableObject {
     private var contentSections: [ContentSection] = []
     private var currentUtterance: AVSpeechUtterance?
     private var utteranceStartPosition: Int = 0  // Track where current utterance starts
+    private var userRequestedStop: Bool = false  // Track if user explicitly stopped playback
     
     // Navigation
     private var skippableSections: Set<Int> = []
@@ -204,8 +205,9 @@ class TTSManager: NSObject, ObservableObject {
             return
         }
         
-        // Clear any previous errors
+        // Clear any previous errors and reset stop flag
         errorMessage = nil
+        userRequestedStop = false
         
         if playbackState == .paused {
             playbackState = .loading
@@ -242,15 +244,9 @@ class TTSManager: NSObject, ObservableObject {
         // Remember where this utterance starts in the document
         utteranceStartPosition = currentPosition
         
-        // Start speaking with error handling
-        do {
-            synthesizer.speak(currentUtterance!)
-            // Note: State will be updated by delegate methods
-        } catch {
-            playbackState = .error("Playback failed")
-            errorMessage = "Failed to start playback: \(error.localizedDescription)"
-            audioFeedback.playFeedback(for: .error)
-        }
+        // Start speaking
+        synthesizer.speak(currentUtterance!)
+        // Note: State will be updated by delegate methods
     }
     
     func pause() {
@@ -272,6 +268,7 @@ class TTSManager: NSObject, ObservableObject {
     }
     
     func stop() {
+        userRequestedStop = true
         synthesizer.stopSpeaking(at: .immediate)
         playbackState = .idle
         currentUtterance = nil
@@ -335,12 +332,16 @@ class TTSManager: NSObject, ObservableObject {
     
     // MARK: - Voice & Audio Control
     func setPlaybackSpeed(_ speed: Float) {
-        playbackSpeed = max(0.5, min(2.0, speed))
+        let newSpeed = max(0.5, min(2.0, speed))
+        
+        // Only update if speed actually changed (avoid unnecessary restarts)
+        guard abs(playbackSpeed - newSpeed) > 0.05 else { return }
+        
+        playbackSpeed = newSpeed
         
         // If currently playing, restart with new speed
         if playbackState == .playing {
-            stop()
-            play()
+            restartFromCurrentPosition()
         }
     }
     
@@ -402,8 +403,9 @@ class TTSManager: NSObject, ObservableObject {
         // Use selected voice or fallback to best available
         utterance.voice = selectedVoice ?? getBestAvailableVoice()
         
-        // Speech rate (optimized for listening while driving)
-        utterance.rate = playbackSpeed
+        // Speech rate (convert user-friendly speed to AVSpeechUtterance rate)
+        // User speed: 0.5x-2.0x -> AVSpeech rate: 0.25-1.0 (0.5 = normal)
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * playbackSpeed
         
         // Pitch adjustment for more natural sound
         utterance.pitchMultiplier = pitchMultiplier
@@ -523,8 +525,11 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
                 self.errorMessage = "No content available for playback"
                 self.audioFeedback.playFeedback(for: .error)
             } else {
-                // Check if there's more content to read (for chunked reading)
-                if self.hasMoreContentToRead() {
+                // Check if user explicitly stopped playback
+                if self.userRequestedStop {
+                    self.playbackState = .idle
+                    self.audioFeedback.playFeedback(for: .playStopped)
+                } else if self.hasMoreContentToRead() {
                     // Continue reading the next chunk automatically
                     self.play()
                 } else {

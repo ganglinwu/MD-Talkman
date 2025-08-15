@@ -54,7 +54,7 @@ struct MockData {
             let fileURLs = try fileManager.contentsOfDirectory(atPath: learningPointsPath)
             let mdFiles = fileURLs.filter { $0.hasSuffix(".md") }.sorted()
             
-            for fileName in mdFiles.prefix(10) { // Limit to first 10 files
+            for fileName in mdFiles { // Load all available markdown files
                 let file = MarkdownFile(context: context)
                 file.id = UUID()
                 
@@ -91,6 +91,8 @@ struct MockData {
             return createPlaceholderFiles(in: context, repository: repository)
         }
         
+        print("✅ Successfully loaded \(markdownFiles.count) Swift learning files")
+        print("📖 Topics include: iOS development, SwiftUI, memory management, networking, and advanced Swift concepts")
         return markdownFiles
     }
     
