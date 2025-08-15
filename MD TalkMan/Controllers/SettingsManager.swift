@@ -31,7 +31,13 @@ class SettingsManager: ObservableObject {
     }
     
     func loadSampleDataIfNeeded(in context: NSManagedObjectContext) {
-        guard isDeveloperModeEnabled else { return }
+        print("🔍 SettingsManager: loadSampleDataIfNeeded called")
+        print("🔍 Developer mode enabled: \(isDeveloperModeEnabled)")
+        
+        guard isDeveloperModeEnabled else { 
+            print("🔍 Developer mode disabled, skipping sample data load")
+            return 
+        }
         
         // Check if we already have repositories
         let request: NSFetchRequest<GitRepository> = GitRepository.fetchRequest()
@@ -39,10 +45,14 @@ class SettingsManager: ObservableObject {
         
         do {
             let count = try context.count(for: request)
+            print("🔍 Found \(count) existing repositories")
+            
             if count == 0 {
                 print("🧪 Developer Mode: Loading sample data...")
                 MockData.createSampleData(in: context)
                 print("✅ Sample data loaded successfully!")
+            } else {
+                print("🔍 Sample data already exists, skipping")
             }
         } catch {
             print("❌ Error checking for existing data: \(error)")
@@ -151,6 +161,24 @@ class SettingsManager: ObservableObject {
         clearSampleData(in: context)
         
         print("🧪 Force loading sample data...")
+        
+        // Check if directory exists
+        let learningPointsPath = "/Users/ganglinwu/code/swiftui/markdown/learning_points"
+        let fileManager = FileManager.default
+        
+        if fileManager.fileExists(atPath: learningPointsPath) {
+            print("✅ Directory exists: \(learningPointsPath)")
+            do {
+                let files = try fileManager.contentsOfDirectory(atPath: learningPointsPath)
+                let mdFiles = files.filter { $0.hasSuffix(".md") }
+                print("✅ Found \(mdFiles.count) .md files in directory")
+            } catch {
+                print("❌ Error reading directory: \(error)")
+            }
+        } else {
+            print("❌ Directory does not exist: \(learningPointsPath)")
+        }
+        
         MockData.createSampleData(in: context)
         print("✅ Sample data loaded successfully!")
     }

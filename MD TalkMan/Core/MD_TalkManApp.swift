@@ -11,6 +11,12 @@ import SwiftUI
 struct MD_TalkManApp: App {
     let persistenceController = PersistenceController.shared
     
+    init() {
+        print("🚀 App: MD_TalkManApp init called")
+        // Load sample data on app startup if needed
+        SettingsManager.shared.loadSampleDataIfNeeded(in: persistenceController.container.viewContext)
+    }
+    
     var body: some Scene {
         WindowGroup {
             ContentView()

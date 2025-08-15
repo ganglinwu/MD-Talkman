@@ -16,6 +16,7 @@ struct ContentView: View {
     private var repositories: FetchedResults<GitRepository>
     @StateObject private var settingsManager = SettingsManager.shared
     @State private var showingSettings = false
+    @State private var debugInfo = "App starting..."
     
     var body: some View {
         NavigationView {
@@ -32,12 +33,21 @@ struct ContentView: View {
                             .fontWeight(.semibold)
                         
                         if settingsManager.isDeveloperModeEnabled {
-                            Text("Developer mode is enabled, but no sample data is loaded")
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
+                            VStack(spacing: 8) {
+                                Text("Developer mode is enabled, but no sample data is loaded")
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                                
+                                Text(debugInfo)
+                                    .font(.caption)
+                                    .foregroundStyle(.tertiary)
+                                    .multilineTextAlignment(.center)
+                            }
                             
                             Button("Load Sample Data") {
+                                debugInfo = "Loading sample data..."
                                 settingsManager.forceLoadSampleData(in: viewContext)
+                                debugInfo = "Sample data loaded!"
                             }
                             .buttonStyle(.borderedProminent)
                         } else {
@@ -105,6 +115,9 @@ struct ContentView: View {
             }
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
+            }
+            .onAppear {
+                debugInfo = "Developer mode: \(settingsManager.isDeveloperModeEnabled), Repos: \(repositories.count)"
             }
         }
     }
