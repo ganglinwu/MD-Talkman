@@ -13,9 +13,9 @@ struct MockData {
         // Create sample repository
         let sampleRepo = GitRepository(context: context)
         sampleRepo.id = UUID()
-        sampleRepo.name = "Personal Notes"
-        sampleRepo.remoteURL = "https://github.com/user/personal-notes"
-        sampleRepo.localPath = "/Documents/Repositories/personal-notes"
+        sampleRepo.name = "Swift Learning Notes"
+        sampleRepo.remoteURL = "https://github.com/user/swift-learning"
+        sampleRepo.localPath = "/Users/ganglinwu/code/swiftui/markdown"
         sampleRepo.defaultBranch = "main"
         sampleRepo.lastSyncDate = Date()
         sampleRepo.syncEnabled = true
@@ -23,16 +23,15 @@ struct MockData {
         // Create sample markdown files
         let articles = createSampleFiles(in: context, repository: sampleRepo)
         
-        // Create sample reading progress and parsed content for multiple files
+        // Create parsed content for all real markdown files
         for (index, article) in articles.enumerated() {
             if index == 0 {
-                // First article gets detailed progress
+                // First article gets detailed progress tracking
                 createSampleProgress(in: context, for: article)
-                createSampleParsedContent(in: context, for: article)
-            } else {
-                // Other articles get basic parsed content
-                createBasicParsedContent(in: context, for: article, index: index)
             }
+            
+            // Parse real markdown content for all files
+            createRealParsedContent(in: context, for: article)
         }
         
         // Save context
@@ -45,14 +44,84 @@ struct MockData {
     }
     
     private static func createSampleFiles(in context: NSManagedObjectContext, repository: GitRepository) -> [MarkdownFile] {
+        // Load real markdown files from learning_points directory
+        let learningPointsPath = "/Users/ganglinwu/code/swiftui/markdown/learning_points"
+        let fileManager = FileManager.default
+        
+        var markdownFiles: [MarkdownFile] = []
+        
+        do {
+            let fileURLs = try fileManager.contentsOfDirectory(atPath: learningPointsPath)
+            let mdFiles = fileURLs.filter { $0.hasSuffix(".md") }.sorted()
+            
+            for fileName in mdFiles.prefix(10) { // Limit to first 10 files
+                let file = MarkdownFile(context: context)
+                file.id = UUID()
+                
+                // Create readable title from filename
+                let title = createReadableTitle(from: fileName)
+                file.title = title
+                
+                file.filePath = "\(learningPointsPath)/\(fileName)"
+                file.gitFilePath = "learning_points/\(fileName)"
+                file.repository = repository
+                file.repositoryId = repository.id
+                file.lastCommitHash = "swift\(Int.random(in: 100...999))"
+                file.lastModified = Date().addingTimeInterval(-Double.random(in: 0...604800)) // Random within last week
+                
+                // Get actual file size
+                if let attributes = try? fileManager.attributesOfItem(atPath: "\(learningPointsPath)/\(fileName)"),
+                   let fileSize = attributes[.size] as? Int64 {
+                    file.fileSize = fileSize
+                } else {
+                    file.fileSize = Int64.random(in: 500...3000)
+                }
+                
+                file.syncStatusEnum = SyncStatus.synced // Learning materials are synced
+                file.hasLocalChanges = false
+                
+                markdownFiles.append(file)
+                
+                print("📚 Added learning file: \(title)")
+            }
+            
+        } catch {
+            print("❌ Error loading learning files: \(error)")
+            // Fall back to placeholder files if real files can't be loaded
+            return createPlaceholderFiles(in: context, repository: repository)
+        }
+        
+        return markdownFiles
+    }
+    
+    private static func createReadableTitle(from fileName: String) -> String {
+        // Convert "swift-01-camera-implementation.md" to "Camera Implementation"
+        let nameWithoutExtension = String(fileName.dropLast(3)) // Remove .md
+        
+        // Remove swift-XX- prefix if present
+        let withoutPrefix = nameWithoutExtension.replacingOccurrences(
+            of: #"^swift-\d+-"#,
+            with: "",
+            options: .regularExpression
+        )
+        
+        // Replace hyphens with spaces and capitalize words
+        let readable = withoutPrefix
+            .replacingOccurrences(of: "-", with: " ")
+            .capitalized
+        
+        return readable
+    }
+    
+    private static func createPlaceholderFiles(in context: NSManagedObjectContext, repository: GitRepository) -> [MarkdownFile] {
         let files = [
-            ("Getting Started with SwiftUI", "getting-started.md", "Learn the basics of SwiftUI development"),
-            ("Advanced Core Data", "advanced-coredata.md", "Deep dive into Core Data relationships"),
-            ("iOS Speech Recognition", "speech-recognition.md", "Implementing voice features in iOS"),
-            ("Git Workflows", "git-workflows.md", "Best practices for version control")
+            ("Getting Started with SwiftUI", "getting-started.md"),
+            ("Advanced Core Data", "advanced-coredata.md"),
+            ("iOS Speech Recognition", "speech-recognition.md"),
+            ("Git Workflows", "git-workflows.md")
         ]
         
-        return files.map { (title, fileName, _) in
+        return files.map { (title, fileName) in
             let file = MarkdownFile(context: context)
             file.id = UUID()
             file.title = title
@@ -61,7 +130,7 @@ struct MockData {
             file.repository = repository
             file.repositoryId = repository.id
             file.lastCommitHash = "abc\(Int.random(in: 100...999))"
-            file.lastModified = Date().addingTimeInterval(-Double.random(in: 0...86400)) // Random within last day
+            file.lastModified = Date().addingTimeInterval(-Double.random(in: 0...86400))
             file.fileSize = Int64.random(in: 1000...5000)
             file.syncStatusEnum = SyncStatus.allCases.randomElement()!
             file.hasLocalChanges = Bool.random()
@@ -94,81 +163,51 @@ struct MockData {
         bookmark2.readingProgress = progress
     }
     
-    private static func createSampleParsedContent(in context: NSManagedObjectContext, for file: MarkdownFile) {
-        let parsedContent = ParsedContent(context: context)
-        parsedContent.fileId = file.id!
-        
-        // Create realistic TTS-converted content
-        parsedContent.plainText = """
-        Heading level 1: Getting Started with SwiftUI. SwiftUI is Apple's modern framework for building user interfaces across all Apple platforms. It uses a declarative syntax that makes it easy to create complex UIs with minimal code. Heading level 2: Key Benefits. • Cross-platform compatibility. • Live previews in Xcode. • Automatic dark mode support. • State management with property wrappers. Heading level 3: Simple Example. Code block in swift begins. [Code content omitted for brevity] Code block ends. This creates a text view with a title font style. You can customize the appearance using modifiers like font, foregroundColor, and padding. Quote: SwiftUI makes building great apps faster and more enjoyable than ever before. End quote. For more information, visit Apple's documentation.
-        """
-        parsedContent.lastParsed = Date()
-        parsedContent.markdownFiles = file
-        
-        // Create sample content sections that match the TTS text
-        let sections = [
-            (0, 47, ContentSectionType.header, 1, false),    // "Heading level 1: Getting Started with SwiftUI."
-            (48, 201, ContentSectionType.paragraph, 0, false), // Main description paragraph
-            (202, 227, ContentSectionType.header, 2, false),   // "Heading level 2: Key Benefits."
-            (228, 260, ContentSectionType.list, 0, false),     // Cross-platform compatibility
-            (261, 291, ContentSectionType.list, 0, false),     // Live previews
-            (292, 328, ContentSectionType.list, 0, false),     // Dark mode support
-            (329, 375, ContentSectionType.list, 0, false),     // State management
-            (376, 408, ContentSectionType.header, 3, false),   // "Heading level 3: Simple Example."
-            (409, 490, ContentSectionType.codeBlock, 0, true), // Code block (skippable)
-            (491, 625, ContentSectionType.paragraph, 0, false), // Explanation paragraph
-            (626, 732, ContentSectionType.blockquote, 0, false), // Quote
-            (733, 784, ContentSectionType.paragraph, 0, false)   // Final paragraph
-        ]
-        
-        for (startIdx, endIdx, sectionType, level, skippable) in sections {
-            let section = ContentSection(context: context)
-            section.startIndex = Int32(startIdx)
-            section.endIndex = Int32(endIdx)
-            section.typeEnum = sectionType
-            section.level = Int16(level)
-            section.isSkippable = skippable
-            section.parsedContent = parsedContent
-        }
-    }
     
     static func createSampleRepository() -> (String, String, String) {
         return ("Sample Repo", "https://github.com/user/sample", "/Documents/Repositories/sample")
     }
     
-    private static func createBasicParsedContent(in context: NSManagedObjectContext, for file: MarkdownFile, index: Int) {
+    
+    private static func createRealParsedContent(in context: NSManagedObjectContext, for file: MarkdownFile) {
+        guard let filePath = file.filePath else {
+            print("❌ No file path for \(file.title ?? "unknown file")")
+            return
+        }
+        
+        do {
+            // Read the actual markdown content
+            let markdownContent = try String(contentsOfFile: filePath, encoding: .utf8)
+            
+            // Parse it using our MarkdownParser
+            let parser = MarkdownParser()
+            parser.processAndSaveMarkdownFile(file, content: markdownContent, in: context)
+            
+            print("✅ Parsed real content for: \(file.title ?? "Unknown")")
+            
+        } catch {
+            print("❌ Error reading \(file.title ?? "unknown"): \(error)")
+            
+            // Fall back to placeholder content
+            createPlaceholderParsedContent(in: context, for: file)
+        }
+    }
+    
+    private static func createPlaceholderParsedContent(in context: NSManagedObjectContext, for file: MarkdownFile) {
         let parsedContent = ParsedContent(context: context)
         parsedContent.fileId = file.id!
         parsedContent.lastParsed = Date()
         parsedContent.markdownFiles = file
         
-        // Different content based on the file
-        switch index {
-        case 1: // Advanced Core Data
-            parsedContent.plainText = """
-            Heading level 1: Advanced Core Data. Core Data is Apple's framework for managing object graphs and persistence. It provides powerful features like relationship management, data validation, and performance optimization. Heading level 2: Key Features. • Object-relational mapping. • Automatic change tracking. • Lazy loading and batching. • Schema migration support. Code block in swift begins. [Code content omitted for brevity] Code block ends. Understanding these concepts will help you build efficient data-driven applications.
-            """
-            
-        case 2: // iOS Speech Recognition
-            parsedContent.plainText = """
-            Heading level 1: iOS Speech Recognition. The Speech framework enables your app to convert audio to text with high accuracy. This guide covers implementation patterns and best practices. Heading level 2: Getting Started. • Request user permission for microphone access. • Set up audio session for recording. • Configure speech recognition parameters. • Handle real-time transcription results. Quote: Speech recognition opens up new possibilities for accessibility and hands-free interaction. End quote. Remember to handle errors gracefully and provide fallback options for users.
-            """
-            
-        case 3: // Git Workflows
-            parsedContent.plainText = """
-            Heading level 1: Git Workflows. Version control is essential for modern software development. This article covers best practices for Git workflows in team environments. Heading level 2: Common Workflows. • Feature branch workflow for isolated development. • Git flow for release management. • GitHub flow for continuous deployment. Heading level 3: Best Practices. Always write descriptive commit messages. Use pull requests for code review. Keep your repository history clean with rebasing.
-            """
-            
-        default:
-            parsedContent.plainText = "Sample content for testing text-to-speech functionality."
-        }
+        // Simple placeholder content
+        parsedContent.plainText = """
+        Heading level 1: \(file.title ?? "Learning Topic"). This is a Swift learning article covering important concepts and best practices. The content includes code examples, explanations, and key takeaways to help you master iOS development.
+        """
         
-        // Create a few basic sections for each file
+        // Create basic sections
         let basicSections = [
             (0, 50, ContentSectionType.header, 1, false),
-            (51, 200, ContentSectionType.paragraph, 0, false),
-            (201, 250, ContentSectionType.header, 2, false),
-            (251, 400, ContentSectionType.paragraph, 0, false)
+            (51, 200, ContentSectionType.paragraph, 0, false)
         ]
         
         for (startIdx, endIdx, sectionType, level, skippable) in basicSections {
