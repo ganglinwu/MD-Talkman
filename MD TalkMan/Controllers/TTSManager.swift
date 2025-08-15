@@ -65,10 +65,22 @@ class TTSManager: NSObject, ObservableObject {
         audioSession = AVAudioSession.sharedInstance()
         
         do {
-            try audioSession?.setCategory(.playback, mode: .spokenAudio, options: [.allowBluetooth, .allowBluetoothA2DP])
+            // Set category for spoken audio with proper Bluetooth support
+            // .spokenAudio mode is designed for TTS and doesn't work well with .allowBluetoothA2DP
+            try audioSession?.setCategory(.playback, mode: .spokenAudio, options: [.allowBluetooth, .duckOthers])
             try audioSession?.setActive(true)
+            print("✅ Audio session setup successful")
         } catch {
-            print("Failed to setup audio session: \(error)")
+            print("❌ Failed to setup audio session: \(error)")
+            
+            // Fallback: Try simpler configuration
+            do {
+                try audioSession?.setCategory(.playback, mode: .default, options: [.allowBluetooth])
+                try audioSession?.setActive(true)
+                print("✅ Audio session setup successful (fallback mode)")
+            } catch fallbackError {
+                print("❌ Fallback audio session setup also failed: \(fallbackError)")
+            }
         }
     }
     
