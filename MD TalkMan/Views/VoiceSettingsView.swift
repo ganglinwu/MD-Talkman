@@ -37,11 +37,13 @@ struct VoiceSettingsView: View {
                         }
                     }
                     .pickerStyle(.navigationLink)
+                    .disabled(ttsManager.isVoiceLoading)
                     
                     Button("Test Voice") {
                         testCurrentVoice()
                     }
                     .foregroundColor(.blue)
+                    .disabled(ttsManager.isVoiceLoading)
                     
                 } header: {
                     Text("Voice Selection")
@@ -103,6 +105,7 @@ struct VoiceSettingsView: View {
                         testCurrentVoice()
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(ttsManager.isVoiceLoading)
                     
                 } header: {
                     Text("Voice Test")
@@ -111,7 +114,16 @@ struct VoiceSettingsView: View {
                 }
                 
                 Section {
-                    if let currentVoice = ttsManager.selectedVoice {
+                    if ttsManager.isVoiceLoading {
+                        HStack {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text("Loading voice...")
+                                .foregroundStyle(.secondary)
+                            Spacer()
+                        }
+                        .padding(.vertical, 8)
+                    } else if let currentVoice = ttsManager.selectedVoice {
                         LabeledContent("Current Voice", value: currentVoice.name)
                         LabeledContent("Language", value: currentVoice.language)
                         LabeledContent("Quality", value: currentVoice.quality.displayName)

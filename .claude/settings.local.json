@@ -6,7 +6,8 @@
       "Bash(mv:*)",
       "Bash(xcodebuild:*)",
       "Bash(swift:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(find:*)"
     ],
     "deny": [],
     "ask": []

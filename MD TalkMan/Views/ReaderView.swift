@@ -129,11 +129,56 @@ This framework will revolutionize how you build iOS apps.
                             .foregroundStyle(.secondary)
                         
                         if let voice = ttsManager.selectedVoice {
-                            Text(voice.name)
-                                .font(.caption2)
-                                .foregroundStyle(.tertiary)
+                            HStack(spacing: 4) {
+                                if ttsManager.isVoiceLoading {
+                                    ProgressView()
+                                        .scaleEffect(0.7)
+                                }
+                                Text(voice.name)
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
                         }
                     }
+                }
+                
+                // Error Message Display
+                if let errorMessage = ttsManager.errorMessage {
+                    HStack {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .foregroundColor(.red)
+                            .font(.caption)
+                        
+                        Text(errorMessage)
+                            .font(.caption)
+                            .foregroundColor(.red)
+                            .multilineTextAlignment(.leading)
+                        
+                        Spacer()
+                        
+                        Button("Dismiss") {
+                            ttsManager.errorMessage = nil
+                        }
+                        .font(.caption2)
+                        .foregroundColor(.blue)
+                    }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .background(Color.red.opacity(0.1))
+                    .cornerRadius(6)
+                }
+                
+                // Voice Loading Indicator
+                if ttsManager.isVoiceLoading {
+                    HStack {
+                        ProgressView()
+                            .scaleEffect(0.8)
+                        
+                        Text("Loading voice...")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                    .padding(.vertical, 4)
                 }
                 
                 // Speed Control
@@ -164,7 +209,7 @@ This framework will revolutionize how you build iOS apps.
                         Image(systemName: "gobackward.5")
                             .font(.title2)
                     }
-                    .disabled(ttsManager.playbackState == .preparing)
+                    .disabled(ttsManager.playbackState == .preparing || ttsManager.playbackState == .loading)
                     
                     Button(action: togglePlayback) {
                         Image(systemName: playPauseIcon)
@@ -174,7 +219,7 @@ This framework will revolutionize how you build iOS apps.
                             .foregroundColor(.white)
                             .clipShape(Circle())
                     }
-                    .disabled(ttsManager.playbackState == .preparing)
+                    .disabled(ttsManager.playbackState == .preparing || ttsManager.playbackState == .loading)
                     
                     Button(action: { ttsManager.stop() }) {
                         Image(systemName: "stop.fill")
@@ -256,8 +301,10 @@ This framework will revolutionize how you build iOS apps.
             return "play.fill"
         case .playing:
             return "pause.fill"
-        case .preparing:
+        case .preparing, .loading:
             return "hourglass"
+        case .error(_):
+            return "exclamationmark.triangle.fill"
         }
     }
     
@@ -269,8 +316,10 @@ This framework will revolutionize how you build iOS apps.
             return "speaker.wave.3"
         case .paused:
             return "speaker.wave.1"
-        case .preparing:
+        case .preparing, .loading:
             return "hourglass"
+        case .error(_):
+            return "exclamationmark.triangle.fill"
         }
     }
     
@@ -282,8 +331,10 @@ This framework will revolutionize how you build iOS apps.
             return .green
         case .paused:
             return .orange
-        case .preparing:
+        case .preparing, .loading:
             return .blue
+        case .error(_):
+            return .red
         }
     }
     
@@ -297,6 +348,10 @@ This framework will revolutionize how you build iOS apps.
             return "Paused"
         case .preparing:
             return "Preparing..."
+        case .loading:
+            return "Loading..."
+        case .error(let message):
+            return "Error: \(message)"
         }
     }
 }

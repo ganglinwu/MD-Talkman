@@ -15,6 +15,8 @@ enum TTSPlaybackState {
     case playing
     case paused
     case preparing
+    case loading
+    case error(String)
 }
 
 // MARK: - TTS Manager
@@ -29,6 +31,8 @@ class TTSManager: NSObject, ObservableObject {
     @Published var selectedVoice: AVSpeechSynthesisVoice?
     @Published var pitchMultiplier: Float = 1.0
     @Published var volumeMultiplier: Float = 1.0
+    @Published var isVoiceLoading: Bool = false
+    @Published var errorMessage: String? = nil
     
     private let synthesizer = AVSpeechSynthesizer()
     private var audioSession: AVAudioSession?
@@ -190,14 +194,29 @@ class TTSManager: NSObject, ObservableObject {
     // MARK: - Playback Controls
     func play() {
         guard let parsedContent = currentParsedContent,
-              !parsedContent.plainText!.isEmpty else {
-            print("No content to play")
+              let plainText = parsedContent.plainText,
+              !plainText.isEmpty else {
+            playbackState = .error("No content")
+            errorMessage = "No content available for playback"
             return
         }
         
+        // Clear any previous errors
+        errorMessage = nil
+        
         if playbackState == .paused {
-            synthesizer.continueSpeaking()
-            playbackState = .playing
+            playbackState = .loading
+            
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                guard let self = self else { return }
+                
+                if self.synthesizer.continueSpeaking() {
+                    self.playbackState = .playing
+                } else {
+                    // Fallback: restart from current position
+                    self.restartFromCurrentPosition()
+                }
+            }
             return
         }
         
@@ -206,20 +225,42 @@ class TTSManager: NSObject, ObservableObject {
         // Get text from current position
         let textToSpeak = getTextFromCurrentPosition()
         
+        guard !textToSpeak.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            playbackState = .error("No content at position")
+            errorMessage = "No content available at current position"
+            return
+        }
+        
         // Create utterance with enhanced settings
         currentUtterance = AVSpeechUtterance(string: textToSpeak)
         setupUtteranceParameters(currentUtterance!)
         
-        // Start speaking
-        synthesizer.speak(currentUtterance!)
-        playbackState = .playing
+        // Start speaking with error handling
+        do {
+            synthesizer.speak(currentUtterance!)
+            // Note: State will be updated by delegate methods
+        } catch {
+            playbackState = .error("Playback failed")
+            errorMessage = "Failed to start playback: \(error.localizedDescription)"
+        }
     }
     
     func pause() {
         guard playbackState == .playing else { return }
         
-        synthesizer.pauseSpeaking(at: .immediate)
-        playbackState = .paused
+        playbackState = .loading
+        
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+            guard let self = self else { return }
+            
+            if self.synthesizer.pauseSpeaking(at: .immediate) {
+                self.playbackState = .paused
+            } else {
+                // Fallback: stop and save position
+                self.synthesizer.stopSpeaking(at: .immediate)
+                self.playbackState = .paused
+            }
+        }
     }
     
     func stop() {
@@ -295,13 +336,29 @@ class TTSManager: NSObject, ObservableObject {
     }
     
     func setVoice(_ voice: AVSpeechSynthesisVoice) {
-        selectedVoice = voice
-        print("🎵 Voice changed to: \(voice.name) (\(voice.language))")
+        isVoiceLoading = true
+        errorMessage = nil
         
-        // If currently playing, restart with new voice
-        if playbackState == .playing {
-            stop()
-            play()
+        let wasPlaying = playbackState == .playing
+        
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            // Simulate voice loading time and test voice
+            Thread.sleep(forTimeInterval: 0.5)
+            
+            DispatchQueue.main.async {
+                self.selectedVoice = voice
+                self.isVoiceLoading = false
+                
+                print("🎵 Voice changed to: \(voice.name) (\(voice.language))")
+                
+                // If was playing, restart with new voice
+                if wasPlaying {
+                    self.stop()
+                    self.play()
+                }
+            }
         }
     }
     
@@ -310,8 +367,7 @@ class TTSManager: NSObject, ObservableObject {
         
         // If currently playing, restart with new pitch
         if playbackState == .playing {
-            stop()
-            play()
+            restartFromCurrentPosition()
         }
     }
     
@@ -320,8 +376,7 @@ class TTSManager: NSObject, ObservableObject {
         
         // If currently playing, restart with new volume
         if playbackState == .playing {
-            stop()
-            play()
+            restartFromCurrentPosition()
         }
     }
     
@@ -350,6 +405,20 @@ class TTSManager: NSObject, ObservableObject {
     }
     
     // MARK: - Private Helpers
+    private func restartFromCurrentPosition() {
+        let savedPosition = currentPosition
+        let savedSectionIndex = currentSectionIndex
+        
+        stop()
+        
+        // Restore position
+        currentPosition = savedPosition
+        currentSectionIndex = savedSectionIndex
+        
+        // Restart playback
+        play()
+    }
+    
     private func getTextFromCurrentPosition() -> String {
         guard let parsedContent = currentParsedContent,
               let plainText = parsedContent.plainText else {
@@ -403,26 +472,42 @@ class TTSManager: NSObject, ObservableObject {
 extension TTSManager: AVSpeechSynthesizerDelegate {
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
-        playbackState = .playing
+        DispatchQueue.main.async { [weak self] in
+            self?.playbackState = .playing
+            self?.errorMessage = nil
+        }
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
-        playbackState = .idle
-        
-        // Mark as completed if we've reached the end
-        if let markdownFile = currentMarkdownFile,
-           let progress = markdownFile.readingProgress {
-            progress.isCompleted = true
-            saveProgress()
+        DispatchQueue.main.async { [weak self] in
+            guard let self = self else { return }
+            
+            if utterance.speechString.isEmpty {
+                self.playbackState = .error("No content to read")
+                self.errorMessage = "No content available for playback"
+            } else {
+                self.playbackState = .idle
+                
+                // Mark as completed if we've reached the end
+                if let markdownFile = self.currentMarkdownFile,
+                   let progress = markdownFile.readingProgress {
+                    progress.isCompleted = true
+                    self.saveProgress()
+                }
+            }
         }
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didPause utterance: AVSpeechUtterance) {
-        playbackState = .paused
+        DispatchQueue.main.async { [weak self] in
+            self?.playbackState = .paused
+        }
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didContinue utterance: AVSpeechUtterance) {
-        playbackState = .playing
+        DispatchQueue.main.async { [weak self] in
+            self?.playbackState = .playing
+        }
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, willSpeakRangeOfSpeechString characterRange: NSRange, utterance: AVSpeechUtterance) {
