@@ -41,7 +41,7 @@ struct VisualTextDisplayView: View {
             }
         }
         .animation(.easeInOut(duration: 0.3), value: isVisible)
-        .onChange(of: windowManager.currentSectionIndex) { _ in
+        .onChange(of: windowManager.currentSectionIndex) {
             withAnimation(.easeInOut(duration: 0.8)) {
                 scrollToCurrentPosition()
             }
@@ -56,8 +56,8 @@ struct VisualTextDisplayView: View {
             
             TextField("Search in text...", text: $searchText)
                 .textFieldStyle(PlainTextFieldStyle())
-                .onChange(of: searchText) { newValue in
-                    searchResults = windowManager.searchInWindow(newValue)
+                .onChange(of: searchText) {
+                    searchResults = windowManager.searchInWindow(searchText)
                 }
             
             if !searchText.isEmpty {
@@ -87,7 +87,7 @@ struct VisualTextDisplayView: View {
                 }
                 .padding()
             }
-            .onChange(of: windowManager.displayWindow) { _ in
+            .onChange(of: windowManager.displayWindow) {
                 // Auto-scroll when content updates
                 withAnimation(.easeInOut(duration: 0.5)) {
                     proxy.scrollTo("textContent", anchor: .top)

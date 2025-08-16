@@ -226,10 +226,10 @@ This framework will revolutionize how you build iOS apps.
                 )
                 .transition(.slide)
                 .padding(.horizontal)
+                .background(Color(UIColor.tertiarySystemBackground))
+                .cornerRadius(12)
+                .padding(.horizontal)
             }
-            .background(Color(UIColor.tertiarySystemBackground))
-            .cornerRadius(12)
-            .padding(.horizontal)
             
             // Controls
             VStack(spacing: 16) {
