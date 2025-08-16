@@ -38,6 +38,9 @@ class TTSManager: NSObject, ObservableObject {
     private var audioSession: AVAudioSession?
     private let audioFeedback = AudioFeedbackManager()
     
+    // Visual text display integration
+    @Published var textWindowManager = TextWindowManager()
+    
     // Available enhanced voices
     private var enhancedVoices: [AVSpeechSynthesisVoice] = []
     
@@ -161,6 +164,12 @@ class TTSManager: NSObject, ObservableObject {
                 if section.isSkippable {
                     skippableSections.insert(index)
                 }
+            }
+            
+            // Load content into text window manager for visual display
+            if let plainText = parsedContent.plainText {
+                textWindowManager.loadContent(sections: contentSections, plainText: plainText)
+                print("📖 TTSManager: Loaded content into text window manager")
             }
         } else {
             contentSections.removeAll()
@@ -473,6 +482,9 @@ class TTSManager: NSObject, ObservableObject {
                 break
             }
         }
+        
+        // Update text window manager with current position
+        textWindowManager.updateWindow(for: currentPosition)
     }
     
     private func saveProgress() {

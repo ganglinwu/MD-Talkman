@@ -12,6 +12,7 @@ struct ReaderView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @StateObject private var ttsManager = TTSManager()
     @State private var showingVoiceSettings = false
+    @State private var showVisualDisplay = false
     
     let markdownFile: MarkdownFile
     
@@ -195,8 +196,37 @@ This framework will revolutionize how you build iOS apps.
                         set: { ttsManager.setPlaybackSpeed($0) }
                     ), in: 0.5...2.0, step: 0.1)
                 }
+                
+                // Visual Text Display Toggle
+                HStack {
+                    Button(showVisualDisplay ? "Hide Text" : "Show Text") {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showVisualDisplay.toggle()
+                        }
+                    }
+                    .font(.subheadline)
+                    .foregroundColor(.blue)
+                    
+                    Spacer()
+                    
+                    if showVisualDisplay {
+                        Text("Reading: Section \(ttsManager.textWindowManager.currentSectionIndex + 1) of \(ttsManager.textWindowManager.getTotalSections())")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
+                }
             }
             .padding()
+            
+            // Visual Text Display
+            if showVisualDisplay {
+                VisualTextDisplayView(
+                    windowManager: ttsManager.textWindowManager,
+                    isVisible: showVisualDisplay
+                )
+                .transition(.slide)
+                .padding(.horizontal)
+            }
             .background(Color(UIColor.tertiarySystemBackground))
             .cornerRadius(12)
             .padding(.horizontal)
