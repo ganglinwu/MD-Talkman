@@ -12,7 +12,8 @@
       "Bash(xcrun -sdk iphoneos swiftc -parse:*)",
       "Bash(git branch:*)",
       "Bash(git stash:*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(git rm:*)"
     ],
     "deny": [],
     "ask": []
