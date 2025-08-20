@@ -7,7 +7,9 @@
       "Bash(xcodebuild:*)",
       "Bash(swift:*)",
       "Bash(git add:*)",
-      "Bash(find:*)"
+      "Bash(find:*)",
+      "Bash(git stash:*)",
+      "Bash(git commit:*)"
     ],
     "deny": [],
     "ask": []
