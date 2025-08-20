@@ -15,7 +15,6 @@ struct ContentView: View {
         animation: .default)
     private var repositories: FetchedResults<GitRepository>
     @StateObject private var settingsManager = SettingsManager.shared
-    @EnvironmentObject private var githubAuth: GitHubAuthManager
     @EnvironmentObject private var githubApp: GitHubAppManager
     @State private var showingSettings = false
     @State private var debugInfo = "App starting..."
@@ -23,100 +22,45 @@ struct ContentView: View {
     var body: some View {
         NavigationView {
             VStack {
-                VStack(spacing: 12){
-                    // GitHub Apps Integration
-                    if githubApp.isAuthenticated {
-                        VStack(spacing: 8) {
-                            Text("GitHub App Connected!")
+                // GitHub Integration Status
+                if githubApp.isAuthenticated {
+                    VStack(spacing: 8) {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
+                            Text("GitHub Connected")
                                 .font(.headline)
-                            
-                            Text("\(githubApp.accessibleRepositories.count) repositories accessible")
-                                .foregroundColor(.secondary)
+                            Spacer()
+                        }
+                        
+                        HStack {
+                            Text("\(githubApp.accessibleRepositories.count) repositories")
                                 .font(.caption)
-                            
-                            ForEach(githubApp.accessibleRepositories) { repo in
-                                Text("📁 \(repo.name)")
-                                    .font(.caption)
-                                    .foregroundColor(.blue)
-                            }
-                            
-                            Button("Disconnect") {
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Button("Manage") {
                                 githubApp.disconnect()
                             }
-                            .buttonStyle(.bordered)
-                        }
-                    } else if githubApp.isInstalled {
-                        VStack(spacing: 8) {
-                            Text("App Installed - Completing Authorization...")
-                                .foregroundColor(.orange)
-                                .font(.headline)
-                            
-                            if githubApp.isProcessing {
-                                ProgressView()
-                                    .scaleEffect(0.8)
-                            }
-                        }
-                    } else {
-                        Button(githubApp.isProcessing ? "Installing App..." : "Connect GitHub (App)"){
-                            githubApp.connectGitHub()
-                        }
-                        .disabled(githubApp.isProcessing)
-                        .buttonStyle(.borderedProminent)
-                        
-                        if let error = githubApp.errorMessage {
-                            Text("Error: \(error)")
-                                .foregroundColor(.red)
-                                .font(.caption)
-                        }
-                        
-                        // Manual test - replace with your actual installation ID
-                        VStack(spacing: 4) {
-                            Text("If redirected to web page, use manual method:")
-                                .font(.caption2)
-                                .foregroundColor(.secondary)
-                            
-                            Button("Continue with Installation ID: 81856427") {
-                                // Your actual installation ID from GitHub
-                                githubApp.testWithInstallationId("81856427")
-                            }
-                            .buttonStyle(.bordered)
                             .font(.caption)
+                            .buttonStyle(.bordered)
                         }
                     }
-                    
-                    Divider()
-                    
-                    // Legacy OAuth (for comparison)
+                    .padding()
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(10)
+                } else if githubApp.isInstalled {
                     VStack(spacing: 8) {
-                        Text("Legacy OAuth (for testing)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        if githubAuth.isAuthenticated {
-                            Text("OAuth connected!")
-                                .foregroundColor(.green)
-                            if let user = githubAuth.currentUser {
-                               Text("Hello, \(user.login)")
-                            }
-                            Button("Logout OAuth") {
-                                githubAuth.logout()
-                            }
-                            .buttonStyle(.bordered)
-                        } else {
-                            Button(githubAuth.isAuthenticating ? "Authenticating..." : "Connect OAuth"){
-                                githubAuth.authenticate()
-                            }
-                            .disabled(githubAuth.isAuthenticating)
-                            .buttonStyle(.bordered)
-                            
-                            if let error = githubAuth.errorMessage {
-                                Text("OAuth Error: \(error)")
-                                    .foregroundColor(.red)
-                                    .font(.caption)
-                            }
+                        HStack {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text("Completing Setup...")
+                                .font(.headline)
+                            Spacer()
                         }
                     }
+                    .padding()
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(10)
                 }
                 if repositories.isEmpty {
                     VStack(spacing: 20) {
@@ -153,10 +97,26 @@ struct ContentView: View {
                                 .multilineTextAlignment(.center)
                             
                             VStack(spacing: 12) {
-                                Button("Add Repository") {
-                                    // TODO: Add repository functionality
+                                if githubApp.isAuthenticated {
+                                    Button("Refresh Repositories") {
+                                        // TODO: Implement repository refresh
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                } else {
+                                    Button(githubApp.isProcessing ? "Connecting..." : "Connect GitHub") {
+                                        githubApp.connectGitHub()
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .disabled(githubApp.isProcessing)
+                                
+                                if let error = githubApp.errorMessage {
+                                    Text(error)
+                                        .font(.caption)
+                                        .foregroundColor(.red)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.top, 8)
                                 }
-                                .buttonStyle(.borderedProminent)
+                                }
                                 
                                 Button("Try Developer Mode") {
                                     showingSettings = true
@@ -205,8 +165,15 @@ struct ContentView: View {
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Add") {
-                        // TODO: Add repository functionality
+                    if githubApp.isAuthenticated {
+                        Button("Refresh") {
+                            // TODO: Implement repository refresh
+                        }
+                    } else {
+                        Button("Connect") {
+                            githubApp.connectGitHub()
+                        }
+                        .disabled(githubApp.isProcessing)
                     }
                 }
             }

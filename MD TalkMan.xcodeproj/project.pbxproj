@@ -40,22 +40,9 @@
 		76F1F12C2E55A22D00EAB4BE /* github-app-private-key.pem */ = {isa = PBXFileReference; lastKnownFileType = text; path = "github-app-private-key.pem"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		76F1F11B2E536BA500EAB4BE /* Exceptions for "MD TalkMan" folder in "MD TalkMan" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				"MD-TalkMan-Info.plist",
-			);
-			target = 76F1EE722E42F71300EAB4BE /* MD TalkMan */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		76F1EE752E42F71300EAB4BE /* MD TalkMan */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				76F1F11B2E536BA500EAB4BE /* Exceptions for "MD TalkMan" folder in "MD TalkMan" target */,
-			);
 			path = "MD TalkMan";
 			sourceTree = "<group>";
 		};

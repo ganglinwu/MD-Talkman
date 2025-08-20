@@ -92,13 +92,11 @@ class GitHubAppManager: ObservableObject {
             return
         }
         
-        print("🚀 Opening GitHub App installation page")
         UIApplication.shared.open(url)
         // Note: isProcessing will be reset in handleInstallationCallback
     }
     
     func handleInstallationCallback(installationId: String) async {
-        print("🏗️ Processing installation callback for ID: \(installationId)")
         
         await MainActor.run {
             self.installationId = installationId
@@ -112,7 +110,6 @@ class GitHubAppManager: ObservableObject {
     // MARK: - User Authorization Flow (Phase 2)
     
     private func initiateUserAuthorization() async {
-        print("🔐 Starting user authorization flow")
         
         let callbackURLString = "mdtalkman://auth"
         let state = generateState()
@@ -145,7 +142,6 @@ class GitHubAppManager: ObservableObject {
     }
     
     func handleAuthorizationCallback(code: String) async {
-        print("🔑 Processing authorization callback with code: \(String(code.prefix(10)))...")
         
         // Exchange code for user access token
         await exchangeCodeForUserToken(code: code)
@@ -192,7 +188,6 @@ class GitHubAppManager: ObservableObject {
             let signer = JWTSigner.rs256(privateKey: privateKeyData)
             
             let signedJWT = try jwt.sign(using: signer)
-            print("✅ JWT generated successfully")
             return signedJWT
             
         } catch {
@@ -204,7 +199,6 @@ class GitHubAppManager: ObservableObject {
     // MARK: - Token Management
     
     private func exchangeCodeForUserToken(code: String) async {
-        print("🔄 Exchanging code for user access token")
         
         guard let url = URL(string: "https://github.com/login/oauth/access_token") else {
             await MainActor.run {
@@ -232,16 +226,9 @@ class GitHubAppManager: ObservableObject {
         do {
             let (data, response) = try await URLSession.shared.data(for: request)
             
-            if let httpResponse = response as? HTTPURLResponse {
-                print("📡 User token exchange response status: \(httpResponse.statusCode)")
-            }
-            
             if let responseString = String(data: data, encoding: .utf8) {
-                print("📦 User token response: \(responseString)")
-                
                 if let accessToken = parseAccessToken(from: responseString) {
                     userAccessToken = accessToken
-                    print("✅ User access token obtained")
                 } else {
                     await MainActor.run {
                         self.errorMessage = "Failed to parse user access token"
@@ -264,8 +251,6 @@ class GitHubAppManager: ObservableObject {
             return
         }
         
-        print("🔐 Generating JWT and exchanging for installation access token")
-        
         // Generate JWT token
         guard let jwtToken = generateJWT() else {
             await MainActor.run {
@@ -273,8 +258,6 @@ class GitHubAppManager: ObservableObject {
             }
             return
         }
-        
-        print("🎫 JWT Token generated: \(String(jwtToken.prefix(20)))...")
         
         // Exchange JWT for installation access token
         guard let url = URL(string: "https://api.github.com/app/installations/\(installationId)/access_tokens") else {
@@ -293,8 +276,6 @@ class GitHubAppManager: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("📡 Installation token response status: \(httpResponse.statusCode)")
-                
                 if httpResponse.statusCode == 401 {
                     await MainActor.run {
                         self.errorMessage = "JWT authentication failed"
@@ -308,20 +289,11 @@ class GitHubAppManager: ObservableObject {
                 }
             }
             
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("📦 Installation token response: \(String(responseString.prefix(200)))...")
-            }
-            
             // Parse installation access token
             let decoder = JSONDecoder()
             let tokenResponse = try decoder.decode(InstallationTokenResponse.self, from: data)
             
             installationAccessToken = tokenResponse.token
-            
-            print("✅ Installation access token obtained: \(String(tokenResponse.token.prefix(10)))...")
-            print("🔍 Debug - Installation ID: \(installationId)")
-            print("🔍 Debug - User token: \(userAccessToken?.prefix(10) ?? "nil")...")
-            print("🔍 Debug - Installation token: \(installationAccessToken?.prefix(10) ?? "nil")...")
             
         } catch {
             print("❌ Installation token exchange failed: \(error)")
@@ -339,7 +311,6 @@ class GitHubAppManager: ObservableObject {
             return
         }
         
-        print("📁 Fetching accessible repositories with token: \(String(token.prefix(10)))...")
         
         // Fetch repositories accessible to this installation (only selected repos!)
         guard let url = URL(string: "https://api.github.com/installation/repositories") else {
@@ -358,8 +329,6 @@ class GitHubAppManager: ObservableObject {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             if let httpResponse = response as? HTTPURLResponse {
-                print("📡 Repositories API response status: \(httpResponse.statusCode)")
-                
                 if httpResponse.statusCode == 401 {
                     await MainActor.run {
                         self.errorMessage = "Authentication failed - token may be invalid"
@@ -373,17 +342,12 @@ class GitHubAppManager: ObservableObject {
                 }
             }
             
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("📦 Repositories response: \(String(responseString.prefix(500)))...")
-            }
-            
             // Parse the repositories response (installation endpoint returns wrapped array)
             let decoder = JSONDecoder()
             let repositoriesResponse = try decoder.decode(RepositoriesResponse.self, from: data)
             
             await MainActor.run {
                 self.accessibleRepositories = repositoriesResponse.repositories
-                print("✅ Fetched \(self.accessibleRepositories.count) installation-accessible repositories")
             }
             
         } catch {
@@ -430,13 +394,6 @@ class GitHubAppManager: ObservableObject {
         initiateInstallation()
     }
     
-    // Temporary manual method for testing
-    func testWithInstallationId(_ installationId: String) {
-        Task {
-            await handleInstallationCallback(installationId: installationId)
-        }
-    }
-    
     func disconnect() {
         isInstalled = false
         isAuthenticated = false
@@ -448,7 +405,6 @@ class GitHubAppManager: ObservableObject {
         errorMessage = nil
         
         // TODO: Clear stored tokens
-        print("🔄 Disconnected from GitHub")
     }
 }
 
