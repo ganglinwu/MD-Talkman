@@ -13,7 +13,10 @@
       "Bash(git branch:*)",
       "Bash(git stash:*)",
       "Bash(git commit:*)",
-      "Bash(git rm:*)"
+      "Bash(git rm:*)",
+      "Bash(docker build:*)",
+      "Bash(go mod:*)",
+      "Bash(rm:*)"
     ],
     "deny": [],
     "ask": []
