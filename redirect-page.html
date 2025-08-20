@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MD TalkMan Installation Complete</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+        .container {
+            text-align: center;
+            background: rgba(255, 255, 255, 0.1);
+            padding: 2rem;
+            border-radius: 20px;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+        .icon {
+            font-size: 4rem;
+            margin-bottom: 1rem;
+        }
+        h1 {
+            margin: 0 0 1rem 0;
+            font-size: 2rem;
+        }
+        p {
+            margin: 0.5rem 0;
+            opacity: 0.9;
+        }
+        .button {
+            display: inline-block;
+            background: #007AFF;
+            color: white;
+            text-decoration: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            margin-top: 1rem;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+        .button:hover {
+            background: #0056CC;
+        }
+        .manual-steps {
+            margin-top: 2rem;
+            padding: 1rem;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="icon">🎉</div>
+        <h1>MD TalkMan Installed Successfully!</h1>
+        <p>GitHub App installation complete.</p>
+        <p>Redirecting to MD TalkMan app...</p>
+        
+        <a href="#" id="openApp" class="button">Open MD TalkMan</a>
+        
+        <div class="manual-steps">
+            <strong>If the app doesn't open automatically:</strong><br>
+            1. Open MD TalkMan app manually<br>
+            2. The app should detect the installation automatically<br>
+            3. If not, check your notifications or restart the app
+        </div>
+    </div>
+
+    <script>
+        // Extract installation_id from URL
+        function getURLParameter(name) {
+            const urlParams = new URLSearchParams(window.location.search);
+            return urlParams.get(name);
+        }
+
+        // Get installation ID from GitHub redirect
+        const installationId = getURLParameter('installation_id');
+        const setupAction = getURLParameter('setup_action');
+        
+        console.log('Installation ID:', installationId);
+        console.log('Setup Action:', setupAction);
+
+        if (installationId) {
+            // Create deep link to MD TalkMan app
+            const deepLink = `mdtalkman://install?installation_id=${installationId}`;
+            
+            // Update the manual button
+            document.getElementById('openApp').href = deepLink;
+            
+            // Try to automatically redirect after 2 seconds
+            setTimeout(() => {
+                console.log('Redirecting to:', deepLink);
+                window.location.href = deepLink;
+            }, 2000);
+            
+            // For iOS Safari, we might need to use window.open
+            setTimeout(() => {
+                try {
+                    window.open(deepLink, '_self');
+                } catch (e) {
+                    console.log('Fallback redirect failed:', e);
+                }
+            }, 3000);
+        } else {
+            document.querySelector('p:nth-of-type(2)').textContent = 'No installation ID found. Please try the installation again.';
+        }
+
+        // Fallback: if user clicks anywhere, try to open app
+        document.addEventListener('click', (e) => {
+            if (e.target.id !== 'openApp' && installationId) {
+                window.location.href = `mdtalkman://install?installation_id=${installationId}`;
+            }
+        });
+    </script>
+</body>
+</html>
