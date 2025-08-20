@@ -1,0 +1,42 @@
+# Ignore unnecessary files for Docker build
+
+# Git files
+.git
+.gitignore
+
+# Documentation
+README.md
+*.md
+
+# Environment files (secrets should be passed via docker-compose)
+.env
+.env.*
+
+# Go build artifacts
+webhook-server
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test files
+*_test.go
+coverage.out
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+tmp/
+temp/
