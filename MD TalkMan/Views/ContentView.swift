@@ -15,12 +15,53 @@ struct ContentView: View {
         animation: .default)
     private var repositories: FetchedResults<GitRepository>
     @StateObject private var settingsManager = SettingsManager.shared
+    @EnvironmentObject private var githubApp: GitHubAppManager
     @State private var showingSettings = false
     @State private var debugInfo = "App starting..."
     
     var body: some View {
         NavigationView {
             VStack {
+                // GitHub Integration Status
+                if githubApp.isAuthenticated {
+                    VStack(spacing: 8) {
+                        HStack {
+                            Image(systemName: "checkmark.circle.fill")
+                                .foregroundColor(.green)
+                            Text("GitHub Connected")
+                                .font(.headline)
+                            Spacer()
+                        }
+                        
+                        HStack {
+                            Text("\(githubApp.accessibleRepositories.count) repositories")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Spacer()
+                            Button("Manage") {
+                                githubApp.disconnect()
+                            }
+                            .font(.caption)
+                            .buttonStyle(.bordered)
+                        }
+                    }
+                    .padding()
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(10)
+                } else if githubApp.isInstalled {
+                    VStack(spacing: 8) {
+                        HStack {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text("Completing Setup...")
+                                .font(.headline)
+                            Spacer()
+                        }
+                    }
+                    .padding()
+                    .background(Color.orange.opacity(0.1))
+                    .cornerRadius(10)
+                }
                 if repositories.isEmpty {
                     VStack(spacing: 20) {
                         Image(systemName: settingsManager.isDeveloperModeEnabled ? "flask" : "folder.badge.plus")
@@ -56,10 +97,26 @@ struct ContentView: View {
                                 .multilineTextAlignment(.center)
                             
                             VStack(spacing: 12) {
-                                Button("Add Repository") {
-                                    // TODO: Add repository functionality
+                                if githubApp.isAuthenticated {
+                                    Button("Refresh Repositories") {
+                                        // TODO: Implement repository refresh
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                } else {
+                                    Button(githubApp.isProcessing ? "Connecting..." : "Connect GitHub") {
+                                        githubApp.connectGitHub()
+                                    }
+                                    .buttonStyle(.borderedProminent)
+                                    .disabled(githubApp.isProcessing)
+                                
+                                if let error = githubApp.errorMessage {
+                                    Text(error)
+                                        .font(.caption)
+                                        .foregroundColor(.red)
+                                        .multilineTextAlignment(.center)
+                                        .padding(.top, 8)
                                 }
-                                .buttonStyle(.borderedProminent)
+                                }
                                 
                                 Button("Try Developer Mode") {
                                     showingSettings = true
@@ -108,8 +165,15 @@ struct ContentView: View {
                 }
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Add") {
-                        // TODO: Add repository functionality
+                    if githubApp.isAuthenticated {
+                        Button("Refresh") {
+                            // TODO: Implement repository refresh
+                        }
+                    } else {
+                        Button("Connect") {
+                            githubApp.connectGitHub()
+                        }
+                        .disabled(githubApp.isProcessing)
                     }
                 }
             }

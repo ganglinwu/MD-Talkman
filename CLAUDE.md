@@ -296,9 +296,10 @@ ContentView
 - [x] Set up SwiftUI project with Core Data
 - [x] Implement markdown parsing with TTS conversion
 - [x] Build enhanced reader UI with TTS controls and haptic feedback
-- [x] Create comprehensive test suite (21 unit tests + integration + UI tests)
+- [x] Create comprehensive test suite (39 unit tests + integration + UI tests)
 - [x] Build embedded content system with 15 Swift learning articles
 - [x] Resolve iOS sandbox limitations with embedded architecture
+- [x] **Visual Text Display System**: Real-time text highlighting synchronized with TTS
 - [x] Create project structure and comprehensive documentation
 
 ### Phase 2: GitHub Integration  
@@ -353,6 +354,15 @@ ContentView
 - Real-time position tracking with Core Data persistence
 - Haptic feedback for accessibility and hands-free operation
 
+**Visual Text Display System**
+- TextWindowManager: Intelligent text windowing with 2-3 paragraph context
+- VisualTextDisplayView: SwiftUI component with real-time highlighting
+- Auto-scroll functionality synchronized with TTS progress
+- Search within displayed text with multi-highlight support
+- Responsive design adapting to iPhone/iPad screen sizes
+- Dual-layer highlighting: current position + search results
+- Toggle show/hide with smooth animations and section progress indicators
+
 **SwiftUI Interface**
 - ContentView: Repository browser with Core Data integration
 - RepositoryDetailView: File listing with sync status indicators
@@ -364,10 +374,11 @@ ContentView
 **Comprehensive Testing**
 - 21 unit tests for markdown parsing accuracy
 - 15 TTS manager tests with mock objects
+- 18 text window manager tests with comprehensive coverage
 - 8 integration tests for complete data flow
 - 10 UI tests for user interaction validation
-- Performance testing with large documents
-- Edge case and error handling coverage
+- Performance testing with large documents and visual display
+- Edge case and error handling coverage across all components
 
 ### 🎵 TTS Conversion Examples
 ```
@@ -384,6 +395,10 @@ Markdown: - List item → TTS: "• List item."
 - Observable TTS manager with @Published state for real-time UI updates
 - Type-safe enum extensions for database string fields
 - Premium voice architecture with automatic fallback selection
+- **Visual text display architecture** with efficient text windowing algorithms
+- **Character-based position tracking** for precise TTS-to-text synchronization
+- **AttributedString highlighting** with dual-layer support (position + search)
+- **Responsive SwiftUI design** adapting to device sizes and orientations
 - Developer mode with granular data management controls
 - Comprehensive error handling and edge case management
 - Audio session management optimized for automotive use

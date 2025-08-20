@@ -6,6 +6,14 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		76F1F1222E54237700EAB4BE /* OAuthSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 76F1F1212E54237700EAB4BE /* OAuthSwift */; };
+		76F1F1262E542C3A00EAB4BE /* .env in Resources */ = {isa = PBXBuildFile; fileRef = 76F1F1252E542C3300EAB4BE /* .env */; };
+		76F1F1282E542C7000EAB4BE /* .gitignore in Resources */ = {isa = PBXBuildFile; fileRef = 76F1F1272E542C6B00EAB4BE /* .gitignore */; };
+		76F1F12D2E55A22D00EAB4BE /* github-app-private-key.pem in Resources */ = {isa = PBXBuildFile; fileRef = 76F1F12C2E55A22D00EAB4BE /* github-app-private-key.pem */; };
+		76F1F12F2E55A29000EAB4BE /* SwiftJWT in Frameworks */ = {isa = PBXBuildFile; productRef = 76F1F12E2E55A29000EAB4BE /* SwiftJWT */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		76F1EE812E42F71500EAB4BE /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -27,6 +35,9 @@
 		76F1EE732E42F71300EAB4BE /* MD TalkMan.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "MD TalkMan.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 		76F1EE802E42F71500EAB4BE /* MD TalkManTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MD TalkManTests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
 		76F1EE8A2E42F71500EAB4BE /* MD TalkManUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = "MD TalkManUITests.xctest"; sourceTree = BUILT_PRODUCTS_DIR; };
+		76F1F1252E542C3300EAB4BE /* .env */ = {isa = PBXFileReference; lastKnownFileType = text; path = .env; sourceTree = "<group>"; };
+		76F1F1272E542C6B00EAB4BE /* .gitignore */ = {isa = PBXFileReference; lastKnownFileType = text; path = .gitignore; sourceTree = "<group>"; };
+		76F1F12C2E55A22D00EAB4BE /* github-app-private-key.pem */ = {isa = PBXFileReference; lastKnownFileType = text; path = "github-app-private-key.pem"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -52,6 +63,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				76F1F12F2E55A29000EAB4BE /* SwiftJWT in Frameworks */,
+				76F1F1222E54237700EAB4BE /* OAuthSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -75,10 +88,14 @@
 		76F1EE6A2E42F71300EAB4BE = {
 			isa = PBXGroup;
 			children = (
+				76F1F1272E542C6B00EAB4BE /* .gitignore */,
+				76F1F1252E542C3300EAB4BE /* .env */,
 				76F1EE752E42F71300EAB4BE /* MD TalkMan */,
 				76F1EE832E42F71500EAB4BE /* MD TalkManTests */,
 				76F1EE8D2E42F71500EAB4BE /* MD TalkManUITests */,
+				76F1F1202E54237700EAB4BE /* Frameworks */,
 				76F1EE742E42F71300EAB4BE /* Products */,
+				76F1F12C2E55A22D00EAB4BE /* github-app-private-key.pem */,
 			);
 			sourceTree = "<group>";
 		};
@@ -90,6 +107,13 @@
 				76F1EE8A2E42F71500EAB4BE /* MD TalkManUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		76F1F1202E54237700EAB4BE /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,6 +136,8 @@
 			);
 			name = "MD TalkMan";
 			packageProductDependencies = (
+				76F1F1212E54237700EAB4BE /* OAuthSwift */,
+				76F1F12E2E55A29000EAB4BE /* SwiftJWT */,
 			);
 			productName = "MD TalkMan";
 			productReference = 76F1EE732E42F71300EAB4BE /* MD TalkMan.app */;
@@ -195,6 +221,10 @@
 			);
 			mainGroup = 76F1EE6A2E42F71300EAB4BE;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				76F1F1192E536AEC00EAB4BE /* XCRemoteSwiftPackageReference "oAuthSwift" */,
+				76F1F12B2E55A1E700EAB4BE /* XCRemoteSwiftPackageReference "Swift-JWT" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 76F1EE742E42F71300EAB4BE /* Products */;
 			projectDirPath = "";
@@ -212,6 +242,9 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				76F1F1262E542C3A00EAB4BE /* .env in Resources */,
+				76F1F12D2E55A22D00EAB4BE /* github-app-private-key.pem in Resources */,
+				76F1F1282E542C7000EAB4BE /* .gitignore in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -400,6 +433,7 @@
 				DEVELOPMENT_TEAM = U5U9XZFVXL;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "MD-TalkMan-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -428,6 +462,7 @@
 				DEVELOPMENT_TEAM = U5U9XZFVXL;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = "MD-TalkMan-Info.plist";
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -558,6 +593,38 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		76F1F1192E536AEC00EAB4BE /* XCRemoteSwiftPackageReference "oAuthSwift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/OAuthSwift/oAuthSwift.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.2.0;
+			};
+		};
+		76F1F12B2E55A1E700EAB4BE /* XCRemoteSwiftPackageReference "Swift-JWT" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/Kitura/Swift-JWT.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 4.0.2;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		76F1F1212E54237700EAB4BE /* OAuthSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 76F1F1192E536AEC00EAB4BE /* XCRemoteSwiftPackageReference "oAuthSwift" */;
+			productName = OAuthSwift;
+		};
+		76F1F12E2E55A29000EAB4BE /* SwiftJWT */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 76F1F12B2E55A1E700EAB4BE /* XCRemoteSwiftPackageReference "Swift-JWT" */;
+			productName = SwiftJWT;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 76F1EE6B2E42F71300EAB4BE /* Project object */;
 }
