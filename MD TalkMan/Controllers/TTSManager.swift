@@ -73,16 +73,21 @@ class TTSManager: NSObject, ObservableObject {
             try audioSession?.setCategory(.playback, mode: .spokenAudio, options: [.allowBluetooth, .duckOthers])
             try audioSession?.setActive(true)
             print("✅ Audio session setup successful")
-        } catch {
-            print("❌ Failed to setup audio session: \(error)")
+        } catch let primaryError {
+            print("❌ Failed to setup audio session: \(primaryError)")
             
             // Fallback: Try simpler configuration
             do {
                 try audioSession?.setCategory(.playback, mode: .default, options: [.allowBluetooth])
                 try audioSession?.setActive(true)
                 print("✅ Audio session setup successful (fallback mode)")
-            } catch fallbackError {
+            } catch let fallbackError {
                 print("❌ Fallback audio session setup also failed: \(fallbackError)")
+                // Set error state so the app can handle this gracefully
+                DispatchQueue.main.async { [weak self] in
+                    self?.playbackState = .error("Audio setup failed")
+                    self?.errorMessage = "Failed to configure audio session: \(fallbackError.localizedDescription)"
+                }
             }
         }
     }

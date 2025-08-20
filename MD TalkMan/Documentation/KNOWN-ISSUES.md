@@ -43,6 +43,70 @@ None needed - current fallback mechanism handles this gracefully.
 
 ---
 
+### System-Level Audio Warnings
+**Status**: Non-Critical  
+**Error**: `IPCAUClient.cpp:129 IPCAUClient: bundle display name is nil`  
+**Date Identified**: 2025-08-16
+
+**Description:**
+System-level audio framework warnings that appear in debug console during TTS operations.
+
+**Impact:**
+- ✅ **No functional impact**: TTS and audio functionality work perfectly
+- ✅ **Audio quality**: No degradation in speech synthesis or playback
+- ⚠️ **Debug noise**: Creates warning messages in development logs
+
+**Root Cause:**
+- iOS system-level audio unit initialization warnings
+- Inter-process communication (IPC) between app and system audio services
+- Framework-level logging from AVFoundation/CoreAudio
+
+**Current Behavior:**
+- System warnings appear but don't affect app functionality
+- TTS plays correctly with proper audio session management
+- No user-visible impact or performance degradation
+
+**Priority**: Very Low (P4)  
+**Estimated Effort**: Not actionable (system-level issue)  
+**Recommended Timeline**: Monitor only - no action needed
+
+**Workaround:**
+None needed - these are informational system warnings.
+
+---
+
+### Metal Rendering Library Warnings
+**Status**: Non-Critical  
+**Error**: `Unable to open mach-O at path: /Library/Caches/.../RenderBox.framework/default.metallib Error:2`  
+**Date Identified**: 2025-08-16
+
+**Description:**
+iOS attempting to load Metal rendering libraries that may not be present in simulator or development environment.
+
+**Impact:**
+- ✅ **No functional impact**: SwiftUI rendering works correctly
+- ✅ **Visual quality**: No impact on UI performance or appearance
+- ⚠️ **Debug noise**: Creates error messages in development console
+
+**Root Cause:**
+- Simulator vs device differences in Metal shader availability
+- iOS framework attempting to load optimized rendering paths
+- Development environment vs production Metal library differences
+
+**Current Behavior:**
+- Framework automatically falls back to available rendering paths
+- SwiftUI interface renders correctly with smooth animations
+- No performance or visual impact on the app
+
+**Priority**: Very Low (P4)  
+**Estimated Effort**: Not actionable (system-level issue)  
+**Recommended Timeline**: Monitor only - no action needed
+
+**Workaround:**
+None needed - iOS handles fallback rendering automatically.
+
+---
+
 ## Future Tracking
 
 Add new non-critical issues here following the same format:

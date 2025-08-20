@@ -8,6 +8,9 @@
       "Bash(swift:*)",
       "Bash(git add:*)",
       "Bash(find:*)",
+      "Bash(git checkout:*)",
+      "Bash(xcrun -sdk iphoneos swiftc -parse:*)",
+      "Bash(git branch:*)",
       "Bash(git stash:*)",
       "Bash(git commit:*)"
     ],
