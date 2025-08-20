@@ -200,10 +200,10 @@ Based on deep concept analysis, here are MD TalkMan's specific GitHub Apps requi
 - Optional: Commits as user (user preference in settings)
 - Proper commit messages with app attribution
 
-✅ **Real-time Sync via Webhooks**
-- Push events: Sync when `.md` files change on GitHub
-- Installation events: Handle repository additions/removals
-- Offline resilience: Queue webhook events when app closed
+✅ **Repository Sync via Polling**
+- Manual refresh: User-initiated repository updates
+- Installation events: Handle repository additions/removals via GitHub API
+- Future enhancement: Real-time sync via webhook proxy
 
 ### Technical Architecture
 
@@ -220,10 +220,11 @@ Based on deep concept analysis, here are MD TalkMan's specific GitHub Apps requi
 - **Installation Tokens**: 1-hour repository access, automatically refreshed
 - **User Tokens**: Long-lived user authorization (for commit attribution)
 
-#### Webhook Integration
-- **Endpoint**: `https://your-server.com/webhooks/github` (requires server)
-- **Events**: `push`, `installation`, `installation_repositories`
-- **Processing**: Filter for `.md` file changes, trigger selective sync
+#### Webhook Integration (Future Enhancement)
+- **Status**: Not implemented in initial release  
+- **Limitation**: iOS apps cannot receive webhooks directly
+- **Alternative**: Polling-based sync for repository updates
+- **Future**: Cloud function proxy for real-time webhook support
 
 #### Security Model
 - **Private Key Storage**: Secure enclave or keychain for JWT signing
@@ -244,11 +245,11 @@ Based on deep concept analysis, here are MD TalkMan's specific GitHub Apps requi
 - [ ] Handle installation and authorization callbacks
 - [ ] Build repository selection and management UI
 
-#### Phase 3: Webhook Integration (Week 6)
-- [ ] Set up webhook server endpoint (or use GitHub Actions)
-- [ ] Implement webhook event processing
-- [ ] Add real-time file sync for `.md` changes
+#### Phase 3: Repository Sync Implementation (Week 6)  
+- [ ] Implement polling-based repository refresh
+- [ ] Add repository content fetching for `.md` files
 - [ ] Handle installation repository modifications
+- [ ] Future: Design webhook proxy architecture
 
 #### Phase 4: Core Data Integration (Week 7)
 - [ ] Update repository and file discovery logic
@@ -266,7 +267,7 @@ Based on deep concept analysis, here are MD TalkMan's specific GitHub Apps requi
 3. **GitHub Actions**: Trigger push notifications to your app
 4. **Hybrid Approach**: Webhooks for immediate sync + polling as fallback
 
-**Recommended for Learning**: Start with polling, add webhooks later for production.
+**Production Approach**: Use polling for initial release, consider webhook proxy for future versions.
 
 ---
 
