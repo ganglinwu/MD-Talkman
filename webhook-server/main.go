@@ -21,12 +21,13 @@ func main() {
 	// Initialize services
 	githubService := services.NewGitHubService(config.WebhookSecret)
 	
-	// Initialize APNs service (choose one method)
+	// Initialize APNs service (gracefully handle missing credentials)
 	var apnsService *services.APNsService
 	var err error
 	
-	if config.APNsKeyPath != "" {
+	if config.APNsKeyPath != "" && config.APNsKeyID != "" && config.APNsTeamID != "" {
 		// Token-based authentication (recommended)
+		log.Println("🔑 Initializing APNs with token-based authentication...")
 		apnsService, err = services.NewAPNsServiceWithToken(
 			config.APNsKeyPath,
 			config.APNsKeyID,
@@ -36,13 +37,21 @@ func main() {
 		)
 	} else if config.APNsCertPath != "" {
 		// Certificate-based authentication (legacy)
+		log.Println("🔑 Initializing APNs with certificate-based authentication...")
 		apnsService, err = services.NewAPNsService(
 			config.APNsCertPath,
 			config.BundleID,
 			config.IsDevelopment,
 		)
 	} else {
-		log.Fatal("❌ Either APNs key file or certificate file must be provided")
+		// No APNs credentials provided - use simplified mode
+		log.Println("⚠️  No APNs credentials provided - running in simplified mode")
+		log.Println("📱 Push notifications will be logged instead of sent")
+		apnsService, err = services.NewAPNsService(
+			"", // No cert path
+			config.BundleID,
+			config.IsDevelopment,
+		)
 	}
 	
 	if err != nil {
@@ -151,12 +160,11 @@ func loadConfig() *Config {
 		log.Fatal("❌ GITHUB_WEBHOOK_SECRET environment variable is required")
 	}
 
-	if config.APNsKeyPath == "" && config.APNsCertPath == "" {
-		log.Fatal("❌ Either APNS_KEY_PATH or APNS_CERT_PATH environment variable is required")
-	}
-
+	// APNs configuration is optional - warn if incomplete but don't fail
 	if config.APNsKeyPath != "" && (config.APNsKeyID == "" || config.APNsTeamID == "") {
-		log.Fatal("❌ APNS_KEY_ID and APNS_TEAM_ID are required when using APNS_KEY_PATH")
+		log.Println("⚠️  APNS_KEY_PATH provided but APNS_KEY_ID or APNS_TEAM_ID missing")
+		log.Println("📱 Will run in simplified mode (notifications logged, not sent)")
+		config.APNsKeyPath = "" // Clear to use simplified mode
 	}
 
 	return config
