@@ -106,10 +106,11 @@ A SwiftUI app for hands-free markdown reading with Claude.ai integration, design
 - Git metadata in .git directories
 
 **GitHub Integration**
-- GitHub API for repository access and webhooks
-- OAuth authentication for user repositories
-- Git operations using SwiftGit2 or similar
-- Support for private repositories
+- GitHub Apps API for repository access and webhooks
+- JWT-based authentication for secure GitHub integration
+- Production webhook server (Go) deployed on EC2 with nginx
+- APNs push notifications for repository changes
+- Support for private repositories with installation-based access
 
 ### Git-Based Sync Architecture
 
@@ -302,11 +303,12 @@ ContentView
 - [x] **Visual Text Display System**: Real-time text highlighting synchronized with TTS
 - [x] Create project structure and comprehensive documentation
 
-### Phase 2: GitHub Integration  
-- [ ] Add GitHub OAuth authentication
-- [ ] Implement repository cloning and sync
-- [ ] Build Git operations (commit, push, pull)
-- [ ] Create repository and file browser UI
+### Phase 2: GitHub Integration ✅ COMPLETED
+- [x] Add GitHub Apps authentication (JWT-based)
+- [x] Implement GitHub API integration with installation tokens
+- [x] Build OAuth flow for GitHub Apps installation
+- [x] Create repository and file browser UI with GitHub integration
+- [x] **Production Webhook Server**: Go-based webhook handler deployed on EC2
 
 ### Phase 3: Claude Integration
 - [ ] Integrate Speech framework for voice input
@@ -370,6 +372,13 @@ ContentView
 - VoiceSettingsView: Premium voice selection and audio customization
 - SettingsView: Developer mode toggle and data management
 - Clean navigation hierarchy with proper state management
+
+**GitHub Apps Integration**
+- JWT signing for secure GitHub API authentication
+- Installation token management with automatic refresh
+- GitHub App installation flow with OAuth callback handling
+- Repository access verification and permission management
+- GitHubManager: Complete API client with installation-based authentication
 
 **Comprehensive Testing**
 - 21 unit tests for markdown parsing accuracy

@@ -151,34 +151,47 @@ GitHub → Webhook → Go Server → APNs → iOS App
 - **Secure APNs token/certificate handling**
 - **Environment-based configuration** (no secrets in code)
 
-## 🚀 Deployment
+## 🚀 Production Deployment
 
-### EC2 Deployment
+### Docker Deployment on EC2
 
-1. **Upload server files** to EC2 instance
-2. **Configure environment variables** (use systemd environment files)
-3. **Set up reverse proxy** (nginx/Apache) with SSL
-4. **Configure systemd service** for auto-restart
-5. **Update GitHub App webhook URL** to your domain
+**Current Status**: ✅ Deployed and running on EC2 with nginx reverse proxy
 
-### Example systemd service
+```bash
+# Pull latest version
+docker pull ganglinwu/mdtalkman-webhook:v1.2
 
-```ini
-# /etc/systemd/system/mdtalkman-webhook.service
-[Unit]
-Description=MD TalkMan Webhook Server
-After=network.target
+# Run with existing docker-compose setup
+docker-compose up -d webhook-server
 
-[Service]
-Type=simple
-User=webapp
-WorkingDirectory=/opt/mdtalkman-webhook
-ExecStart=/opt/mdtalkman-webhook/webhook-server
-EnvironmentFile=/etc/mdtalkman-webhook/config.env
-Restart=always
+# Or run standalone
+docker run -d --name mdtalkman-webhook \
+  --network todoapp \
+  --env-file .env \
+  -p 8081:8080 \
+  -v ./certs:/app/certs:ro \
+  ganglinwu/mdtalkman-webhook:v1.2
+```
 
-[Install]
-WantedBy=multi-user.target
+### Nginx Integration
+
+**Current Configuration**: Integrated with existing nginx setup on port 80
+- Webhook endpoint: `http://your-ec2-ip/webhook/github`
+- Health check: `http://your-ec2-ip/health`
+- Rate limiting: 10 requests/minute with burst of 5
+
+### Docker Compose Integration
+
+**Production Setup**: Integrated with existing todoapp infrastructure
+```yaml
+# Runs alongside existing sveltekit-app and backend services
+services:
+  webhook-server:
+    image: ganglinwu/mdtalkman-webhook:v1.2
+    container_name: mdtalkman-webhook
+    ports: ["8081:8080"]
+    networks: [todoapp]
+    # ... full configuration in docker-compose.integration.yml
 ```
 
 ## 📊 Monitoring
@@ -206,10 +219,28 @@ curl https://your-domain.com/webhook/status
 
 ### Common Issues
 
-1. **Invalid webhook signature**: Check `GITHUB_WEBHOOK_SECRET` matches GitHub App
-2. **APNs authentication failed**: Verify certificate/key files and permissions
-3. **Push notifications not received**: Check device token registration and APNs environment
-4. **Server not receiving webhooks**: Verify GitHub App webhook URL and SSL certificate
+1. **"Unauthorized" Error**:
+   - Check webhook secret matches GitHub App settings
+   - Verify signature verification is working
+   - Test endpoint without signature first using curl
+
+2. **No Webhook Events Received**:
+   - Verify GitHub App webhook URL: `http://your-ec2-ip/webhook/github`
+   - Check "Push" events are subscribed in GitHub App settings
+   - Verify GitHub App is installed on target repository
+   - Check nginx logs: `docker logs nginx | grep webhook`
+   - Test endpoint: `curl -I http://your-ec2-ip/webhook/github` (expect 405)
+   - Check GitHub App "Recent Deliveries" for failed delivery attempts
+
+3. **APNs Errors**:
+   - Verify `.p8` file exists and has correct permissions (600)
+   - Check APNS_KEY_ID and APNS_TEAM_ID match Apple Developer Portal
+   - Ensure BUNDLE_ID matches your iOS app bundle identifier
+
+4. **Container Issues**:
+   - Check `.env` file has all required variables
+   - Verify certificate volume mount path exists
+   - Check container logs: `docker logs mdtalkman-webhook`
 
 ### Debug Mode
 
