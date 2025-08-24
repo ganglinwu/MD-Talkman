@@ -6,10 +6,11 @@ A SwiftUI app for hands-free markdown reading with Claude.ai integration, design
 
 MD TalkMan transforms markdown documents into an audio-first experience, perfect for consuming technical content while driving, walking, or when visual attention isn't available. The app integrates with GitHub repositories and Claude.ai for intelligent content interaction.
 
-## ✅ Current Status: Phase 1 Complete
+## ✅ Current Status: Phase 2 Complete - Production Webhook System
 
 ### 🎵 **Audio-First Markdown Experience**
 - **Smart TTS Conversion**: Markdown syntax is transformed into natural speech
+- **Visual Text Display**: Real-time text highlighting synchronized with TTS
 - **Section Navigation**: Skip between headers, paragraphs, code blocks
 - **Technical Content Skipping**: Automatically identify and skip code blocks
 - **Speed Control**: Adjustable playback speed (0.5x - 2.0x)
@@ -19,13 +20,15 @@ MD TalkMan transforms markdown documents into an audio-first experience, perfect
 - **6-Entity Core Data Model**: Production-ready with perfect relationships
 - **Type-Safe Enums**: SyncStatus, ContentSectionType with UI integration
 - **Automatic Progress Saving**: Reading position, bookmarks, completion status
-- **GitHub Sync Ready**: Data model prepared for repository synchronization
+- **Embedded Content System**: 15 comprehensive Swift learning articles
+- **GitHub Apps Integration**: JWT authentication with installation tokens
 
 ### 🧪 **Comprehensive Testing**
-- **44 Total Tests**: Unit, integration, and UI test coverage
+- **72 Total Tests**: Unit, integration, and UI test coverage
 - **Performance Tested**: Large documents (1000+ sections)
 - **Edge Case Handling**: Malformed markdown, empty content, error recovery
 - **Mock Objects**: Isolated testing with realistic sample data
+- **Visual Text Display**: Comprehensive text window and highlighting tests
 
 ## 🏗️ **Architecture Highlights**
 
@@ -115,13 +118,31 @@ xcodebuild test -project "MD TalkMan.xcodeproj" -scheme "MD TalkMan"
 xcodebuild test -project "MD TalkMan.xcodeproj" -scheme "MD TalkMan" -only-testing:MD_TalkManTests/MarkdownParserTests
 ```
 
+### 🔗 **GitHub Integration & Webhook System**
+- **GitHub Apps Authentication**: JWT-based secure API access
+- **Repository Management**: Browse and access GitHub repositories
+- **Installation Flow**: OAuth-based GitHub App installation
+- **Production Webhook Server**: Go-based webhook handler deployed on EC2
+- **Real APNs Integration**: Token-based push notifications for repository updates
+- **AWS CloudFront Resolution**: Comprehensive webhook debugging and architecture
+
+### 🛠️ **Production Infrastructure**
+- **Docker Deployment**: Multi-stage builds with health checks
+- **nginx Reverse Proxy**: Production-ready routing and rate limiting
+- **APNs Push Notifications**: Real-time repository update notifications
+- **GitHub Webhook Processing**: Smart markdown file change detection
+- **EC2 Production Deployment**: Scalable webhook processing infrastructure
+
 ## 📋 **Roadmap**
 
-### Phase 2: GitHub Integration (Next)
-- [ ] OAuth authentication with GitHub
-- [ ] Repository cloning and local sync
-- [ ] Git operations (commit, push, pull)
-- [ ] Real-time sync status indicators
+### Phase 2: GitHub Integration & Webhook System ✅ COMPLETED
+- [x] GitHub Apps authentication (JWT-based)
+- [x] GitHub API integration with installation tokens
+- [x] OAuth flow for GitHub Apps installation
+- [x] Repository and file browser UI with GitHub integration
+- [x] Production webhook server deployed on EC2
+- [x] Real APNs integration with token-based authentication
+- [x] Webhook debugging and architecture documentation
 
 ### Phase 3: Claude.ai Integration
 - [ ] Speech-to-text for voice questions
@@ -138,8 +159,8 @@ xcodebuild test -project "MD TalkMan.xcodeproj" -scheme "MD TalkMan" -only-testi
 ## 🧪 **Testing Strategy**
 
 ### Test Coverage
-- **Unit Tests (21)**: MarkdownParser, TTSManager, Core Data entities
-- **Integration Tests (8)**: End-to-end data flow, relationship integrity
+- **Unit Tests (39)**: MarkdownParser, TTSManager, TextWindowManager, Core Data entities
+- **Integration Tests (18)**: End-to-end data flow, relationship integrity
 - **UI Tests (10)**: User interaction, navigation, accessibility
 - **Utils Tests (5)**: Test configuration, mock data validation
 
@@ -153,7 +174,8 @@ xcodebuild test -project "MD TalkMan.xcodeproj" -scheme "MD TalkMan" -only-testi
 
 - **[CLAUDE.md](CLAUDE.md)**: Complete project architecture and implementation details
 - **[ProjectStructure.md](ProjectStructure.md)**: Folder organization and design patterns
-- **[PersistentController.md](PersistentController.md)**: Core Data architecture guide
+- **[webhook-debugging-adventure.md](webhook-debugging-adventure.md)**: Complete webhook debugging story
+- **[webhook-server/README.md](webhook-server/README.md)**: Production webhook server documentation
 - **[TestSummary.md](TestSummary.md)**: Comprehensive testing coverage report
 
 ## 🤝 **Contributing**
@@ -181,9 +203,12 @@ MIT License - see LICENSE file for details.
 
 - Built with **SwiftUI** and **Core Data**
 - **AVFoundation** for text-to-speech functionality  
+- **GitHub Apps API** for secure repository management
+- **Apple Push Notification Service (APNs)** for real-time notifications
+- **Go** and **Docker** for production webhook server
+- **nginx** for reverse proxy and load balancing
 - **Speech Framework** for voice recognition (upcoming)
 - **Claude.ai** for intelligent content interaction (upcoming)
-- **GitHub API** for repository management (upcoming)
 
 ---
 

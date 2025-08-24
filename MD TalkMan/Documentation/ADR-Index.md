@@ -16,6 +16,8 @@ Each ADR follows this structure:
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
 | [ADR-001](./ADR-001-Int32-For-Position-Tracking.md) | Use Int32 for Position Tracking | ✅ Accepted | 2025-08-15 |
+| [ADR-002](./ADR-002-Visual-Text-Display.md) | Visual Text Display with Real-time Highlighting | ✅ Accepted | 2025-08-16 |
+| [ADR-003](./ADR-003-Webhook-Architecture.md) | Go-based Webhook Server with APNs Integration | ✅ Accepted | 2025-08-24 |
 
 ## ADR Statuses
 

@@ -33,6 +33,26 @@ MD TalkMan/
 │
 └── Assets.xcassets/              # App icons, colors, and other assets
 
+webhook-server/                     # Production Go Webhook Server
+├── handlers/                       # HTTP Request Handlers
+│   ├── health.go                  # Health check endpoints
+│   └── webhook.go                 # GitHub webhook processing
+│
+├── services/                       # Business Logic Services
+│   ├── github.go                  # GitHub webhook validation and processing
+│   └── apns.go                    # Apple Push Notification Service integration
+│
+├── models/                         # Data Models
+│   └── webhook.go                 # GitHub webhook payload structures
+│
+├── Dockerfile                      # Docker containerization
+├── docker-compose.yml             # Local development setup
+├── docker-compose.integration.yml # Production deployment configuration
+├── nginx.conf                     # Reverse proxy configuration
+├── deploy.sh                      # Production deployment script
+├── test-webhook.sh                # Webhook testing utilities
+└── README.md                      # Webhook server documentation
+
 Tests/
 ├── Unit/                         # Unit Tests
 │   ├── MarkdownParserTests.swift # Markdown parsing accuracy tests
