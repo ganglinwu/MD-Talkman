@@ -1,0 +1,91 @@
+version: '3'
+
+services:
+    app:
+      image: ganglinwu/todoapp-backend-v1:v1.0m
+      container_name: backend
+      environment:
+        - MONGO_DSN=mongodb+srv://ganglinwu:GjlV3oEqiQ0uqY3h@practicedb.qwqpjew.mongodb.net/?retryWrites=true&w=majority&appName=mongo-dev-todo-v1&authSource=admin
+        - MONGO_DB_NAME=mongo-dev-todo-v1
+        - MONGO_COLLECTION=todos
+      ports:
+        - "8080:8080"
+      networks:
+        - todoapp
+
+    sveltekit-app:
+      image: ganglinwu/todoapp-frontend:v1.2
+      container_name: frontend
+      ports:
+        - "3000:3000"
+      environment:
+        - NODE_ENV=production
+        - PORT=3000
+      networks:
+        - todoapp
+
+    # MD TalkMan Webhook Server
+    webhook-server:
+      build: ./webhook-server
+      container_name: mdtalkman-webhook
+      ports:
+        - "8081:8081"
+      environment:
+        # Server configuration
+        - PORT=8081
+        
+        # GitHub webhook secret (set this in your .env file)
+        - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET}
+        
+        # iOS app configuration
+        - BUNDLE_ID=${BUNDLE_ID:-ganglinwu.MD-TalkMan}
+        
+        # APNs configuration
+        - APNS_DEVELOPMENT=${APNS_DEVELOPMENT:-true}
+        - APNS_KEY_PATH=${APNS_KEY_PATH:-/app/certs/AuthKey.p8}
+        - APNS_KEY_ID=${APNS_KEY_ID}
+        - APNS_TEAM_ID=${APNS_TEAM_ID}
+        - APNS_CERT_PATH=${APNS_CERT_PATH}
+        
+      volumes:
+        # Mount certificates/keys directory
+        - ./webhook-server/certs:/app/certs:ro
+        
+      restart: unless-stopped
+      
+      # Health check
+      healthcheck:
+        test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8081/health"]
+        interval: 30s
+        timeout: 10s
+        retries: 3
+        start_period: 40s
+        
+      # Logging configuration
+      logging:
+        driver: "json-file"
+        options:
+          max-size: "10m"
+          max-file: "3"
+          
+      networks:
+        - todoapp
+
+    nginx:
+        image: nginx
+        container_name: nginx
+        ports:
+          - "80:80"
+        volumes:
+          - ./nginx.conf:/etc/nginx/nginx.conf
+        depends_on:
+          - app
+          - sveltekit-app
+          - webhook-server
+        networks:
+          - todoapp
+
+networks:
+  todoapp:
+    name: todoapp
+    driver: bridge
