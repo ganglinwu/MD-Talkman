@@ -17,6 +17,7 @@ struct ContentView: View {
     @StateObject private var settingsManager = SettingsManager.shared
     @EnvironmentObject private var githubApp: GitHubAppManager
     @State private var showingSettings = false
+    @State private var showingGitHubManagement = false
     @State private var debugInfo = "App starting..."
     
     var body: some View {
@@ -34,12 +35,31 @@ struct ContentView: View {
                         }
                         
                         HStack {
-                            Text("\(githubApp.accessibleRepositories.count) repositories")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
+                            if githubApp.isProcessing {
+                                HStack(spacing: 4) {
+                                    ProgressView()
+                                        .scaleEffect(0.6)
+                                    Text("Syncing...")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            } else if githubApp.isParsingFiles {
+                                HStack(spacing: 4) {
+                                    ProgressView()
+                                        .scaleEffect(0.6)
+                                    Text("Parsing files...")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                            } else {
+                                Text("\(githubApp.accessibleRepositories.count) repositories")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            
                             Spacer()
                             Button("Manage") {
-                                githubApp.disconnect()
+                                showingGitHubManagement = true
                             }
                             .font(.caption)
                             .buttonStyle(.bordered)
@@ -91,17 +111,34 @@ struct ContentView: View {
                                 debugInfo = "Sample data loaded!"
                             }
                             .buttonStyle(.borderedProminent)
+                            .disabled(githubApp.isAuthenticated && !githubApp.accessibleRepositories.isEmpty)
                         } else {
-                            Text("Connect your GitHub repositories to start reading")
-                                .foregroundStyle(.secondary)
-                                .multilineTextAlignment(.center)
+                            if githubApp.isAuthenticated && !githubApp.accessibleRepositories.isEmpty {
+                                VStack(spacing: 8) {
+                                    Text("GitHub Connected - Tap 'Sync Repositories' to load your markdown files")
+                                        .foregroundStyle(.secondary)
+                                        .multilineTextAlignment(.center)
+                                    
+                                    Text(debugInfo)
+                                        .font(.caption)
+                                        .foregroundStyle(.tertiary)
+                                        .multilineTextAlignment(.center)
+                                }
+                            } else {
+                                Text("Connect your GitHub repositories to start reading")
+                                    .foregroundStyle(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
                             
                             VStack(spacing: 12) {
                                 if githubApp.isAuthenticated {
-                                    Button("Refresh Repositories") {
-                                        // TODO: Implement repository refresh
+                                    Button(githubApp.isProcessing ? "Syncing..." : githubApp.isParsingFiles ? "Parsing..." : "Sync Repositories") {
+                                        Task {
+                                            await githubApp.syncAllRepositories(context: viewContext)
+                                        }
                                     }
                                     .buttonStyle(.borderedProminent)
+                                    .disabled(githubApp.isProcessing || githubApp.isParsingFiles)
                                 } else {
                                     Button(githubApp.isProcessing ? "Connecting..." : "Connect GitHub") {
                                         githubApp.connectGitHub()
@@ -167,8 +204,11 @@ struct ContentView: View {
                 ToolbarItem(placement: .navigationBarTrailing) {
                     if githubApp.isAuthenticated {
                         Button("Refresh") {
-                            // TODO: Implement repository refresh
+                            Task {
+                                await githubApp.syncAllRepositories(context: viewContext)
+                            }
                         }
+                        .disabled(githubApp.isProcessing)
                     } else {
                         Button("Connect") {
                             githubApp.connectGitHub()
@@ -180,8 +220,17 @@ struct ContentView: View {
             .sheet(isPresented: $showingSettings) {
                 SettingsView()
             }
+            .sheet(isPresented: $showingGitHubManagement) {
+                GitHubManagementView()
+            }
             .onAppear {
-                debugInfo = "Developer mode: \(settingsManager.isDeveloperModeEnabled), Repos: \(repositories.count)"
+                debugInfo = "Developer mode: \(settingsManager.isDeveloperModeEnabled), Repos: \(repositories.count), GitHub: \(githubApp.accessibleRepositories.count)"
+            }
+            .onChange(of: githubApp.isAuthenticated) {
+                debugInfo = "GitHub auth changed - Repos: \(repositories.count), GitHub: \(githubApp.accessibleRepositories.count)"
+            }
+            .onChange(of: repositories.count) {
+                debugInfo = "Core Data repos changed - Repos: \(repositories.count), GitHub: \(githubApp.accessibleRepositories.count)"
             }
         }
     }

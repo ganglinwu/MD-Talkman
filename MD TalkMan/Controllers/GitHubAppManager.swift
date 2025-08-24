@@ -8,6 +8,7 @@
 import Foundation
 import UIKit
 import SwiftJWT
+import CoreData
 
 class GitHubAppManager: ObservableObject {
     @Published var isInstalled: Bool = false
@@ -16,6 +17,8 @@ class GitHubAppManager: ObservableObject {
     @Published var errorMessage: String?
     @Published var currentUser: GitHubUser?
     @Published var accessibleRepositories: [GitHubRepository] = []
+    @Published var isParsingFiles: Bool = false
+    @Published var parsingProgress: String = ""
     
     // GitHub App Configuration
     private let appId = "1811852"
@@ -42,7 +45,7 @@ class GitHubAppManager: ObservableObject {
             return ""
         }
         
-        guard let contents = try? String(contentsOfFile: path) else {
+        guard let contents = try? String(contentsOfFile: path, encoding: .utf8) else {
             print("Failed to read .env file")
             return ""
         }
@@ -65,7 +68,7 @@ class GitHubAppManager: ObservableObject {
             return nil
         }
         
-        guard let privateKeyContent = try? String(contentsOfFile: path) else {
+        guard let privateKeyContent = try? String(contentsOfFile: path, encoding: .utf8) else {
             print("❌ Failed to read private key file")
             return nil
         }
@@ -75,7 +78,32 @@ class GitHubAppManager: ObservableObject {
     }
     
     private func checkExistingInstallation() {
-        // TODO: Check for stored installation ID and tokens
+        // Load stored installation data
+        if let storedInstallationId = UserDefaults.standard.string(forKey: "github_installation_id"),
+           let storedUserToken = UserDefaults.standard.string(forKey: "github_user_token"),
+           let storedInstallationToken = UserDefaults.standard.string(forKey: "github_installation_token") {
+            
+            self.installationId = storedInstallationId
+            self.userAccessToken = storedUserToken
+            self.installationAccessToken = storedInstallationToken
+            self.isInstalled = true
+            
+            print("✅ Restored GitHub connection from storage")
+            
+            // Verify the tokens are still valid by fetching repositories
+            Task {
+                await fetchAccessibleRepositories()
+                if !accessibleRepositories.isEmpty {
+                    await MainActor.run {
+                        self.isAuthenticated = true
+                    }
+                    print("✅ GitHub connection verified and restored")
+                } else {
+                    print("⚠️ Stored tokens appear invalid, clearing them")
+                    clearStoredCredentials()
+                }
+            }
+        }
     }
     
     // MARK: - Installation Flow (Phase 1)
@@ -102,6 +130,9 @@ class GitHubAppManager: ObservableObject {
             self.installationId = installationId
             self.isInstalled = true
         }
+        
+        // Store the installation ID
+        UserDefaults.standard.set(installationId, forKey: "github_installation_id")
         
         // After installation, we need user authorization
         await initiateUserAuthorization()
@@ -224,11 +255,14 @@ class GitHubAppManager: ObservableObject {
         request.httpBody = bodyString.data(using: .utf8)
         
         do {
-            let (data, response) = try await URLSession.shared.data(for: request)
+            let (data, _) = try await URLSession.shared.data(for: request)
             
             if let responseString = String(data: data, encoding: .utf8) {
                 if let accessToken = parseAccessToken(from: responseString) {
                     userAccessToken = accessToken
+                    
+                    // Store the user token
+                    UserDefaults.standard.set(accessToken, forKey: "github_user_token")
                 } else {
                     await MainActor.run {
                         self.errorMessage = "Failed to parse user access token"
@@ -294,6 +328,9 @@ class GitHubAppManager: ObservableObject {
             let tokenResponse = try decoder.decode(InstallationTokenResponse.self, from: data)
             
             installationAccessToken = tokenResponse.token
+            
+            // Store the installation token
+            UserDefaults.standard.set(installationAccessToken, forKey: "github_installation_token")
             
         } catch {
             print("❌ Installation token exchange failed: \(error)")
@@ -394,7 +431,312 @@ class GitHubAppManager: ObservableObject {
         initiateInstallation()
     }
     
+    // MARK: - Repository Management
+    
+    func refreshRepositories() async {
+        guard isAuthenticated else {
+            print("⚠️ Cannot refresh repositories - not authenticated")
+            return
+        }
+        
+        print("🔄 Refreshing repositories...")
+        await MainActor.run {
+            self.isProcessing = true
+            self.errorMessage = nil
+        }
+        
+        // Re-fetch repositories using existing token
+        await fetchAccessibleRepositories()
+        
+        await MainActor.run {
+            self.isProcessing = false
+        }
+    }
+    
+    func syncAllRepositories(context: NSManagedObjectContext) async {
+        guard isAuthenticated else {
+            print("⚠️ Cannot sync repositories - not authenticated")
+            return
+        }
+        
+        print("🔄 Syncing all repositories...")
+        await MainActor.run {
+            self.isProcessing = true
+            self.errorMessage = nil
+        }
+        
+        // Process each accessible repository
+        for githubRepo in accessibleRepositories {
+            await syncRepository(githubRepo: githubRepo, context: context)
+        }
+        
+        await MainActor.run {
+            self.isProcessing = false
+        }
+        
+        print("✅ All repositories synced successfully")
+    }
+    
+    private func syncRepository(githubRepo: GitHubRepository, context: NSManagedObjectContext) async {
+        print("📦 Syncing repository: \(githubRepo.fullName)")
+        
+        // Create or update GitRepository entity in Core Data
+        await context.perform {
+            let fetchRequest: NSFetchRequest<GitRepository> = GitRepository.fetchRequest()
+            fetchRequest.predicate = NSPredicate(format: "remoteURL == %@", "https://github.com/\(githubRepo.fullName)")
+            
+            let gitRepo: GitRepository
+            if let existingRepo = try? context.fetch(fetchRequest).first {
+                gitRepo = existingRepo
+            } else {
+                gitRepo = GitRepository(context: context)
+                gitRepo.setValue(UUID(), forKey: "id")
+                gitRepo.remoteURL = "https://github.com/\(githubRepo.fullName)"
+            }
+            
+            // Update repository metadata
+            gitRepo.name = githubRepo.name
+            gitRepo.localPath = "/tmp/\(githubRepo.name)" // Placeholder local path
+            gitRepo.defaultBranch = "main" // Default, could be fetched from API
+            gitRepo.lastSyncDate = Date()
+            gitRepo.syncEnabled = true
+            
+            do {
+                try context.save()
+                print("✅ Repository saved: \(githubRepo.name)")
+            } catch {
+                print("❌ Failed to save repository: \(error)")
+            }
+        }
+        
+        // Fetch markdown files from this repository
+        await fetchMarkdownFiles(for: githubRepo, context: context)
+    }
+    
+    private func fetchMarkdownFiles(for githubRepo: GitHubRepository, context: NSManagedObjectContext) async {
+        guard let token = installationAccessToken else {
+            print("❌ No access token for file fetching")
+            return
+        }
+        
+        // GitHub API endpoint for repository contents
+        guard let url = URL(string: "https://api.github.com/repos/\(githubRepo.fullName)/contents") else {
+            print("❌ Invalid repository contents URL")
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+                print("❌ Failed to fetch repository contents: HTTP \(httpResponse.statusCode)")
+                return
+            }
+            
+            let decoder = JSONDecoder()
+            let contents = try decoder.decode([GitHubContent].self, from: data)
+            
+            // Filter for markdown files
+            let markdownFiles = contents.filter { content in
+                content.type == "file" && (
+                    content.name.hasSuffix(".md") || 
+                    content.name.hasSuffix(".markdown")
+                )
+            }
+            
+            print("📄 Found \(markdownFiles.count) markdown files in \(githubRepo.name)")
+            
+            // Process each markdown file
+            for content in markdownFiles {
+                await processMarkdownFile(content: content, githubRepo: githubRepo, context: context)
+            }
+            
+            // Fetch and parse the actual markdown content
+            await MainActor.run {
+                self.isParsingFiles = true
+                self.parsingProgress = "Preparing to parse \(markdownFiles.count) files..."
+            }
+            
+            print("🔄 Starting to fetch and parse \(markdownFiles.count) markdown files...")
+            for (index, content) in markdownFiles.enumerated() {
+                await MainActor.run {
+                    self.parsingProgress = "Parsing \(index + 1)/\(markdownFiles.count): \(content.name)"
+                }
+                print("📄 Processing file \(index + 1)/\(markdownFiles.count): \(content.name)")
+                await fetchAndParseMarkdownContent(content: content, githubRepo: githubRepo, context: context)
+            }
+            
+            await MainActor.run {
+                self.isParsingFiles = false
+                self.parsingProgress = ""
+            }
+            print("✅ Completed processing all markdown files for \(githubRepo.name)")
+            
+        } catch {
+            print("❌ Failed to fetch repository contents: \(error)")
+        }
+    }
+    
+    private func processMarkdownFile(content: GitHubContent, githubRepo: GitHubRepository, context: NSManagedObjectContext) async {
+        await context.perform {
+            // Find the corresponding GitRepository entity
+            let repoFetchRequest: NSFetchRequest<GitRepository> = GitRepository.fetchRequest()
+            repoFetchRequest.predicate = NSPredicate(format: "remoteURL == %@", "https://github.com/\(githubRepo.fullName)")
+            
+            guard let gitRepository = try? context.fetch(repoFetchRequest).first else {
+                print("❌ Could not find GitRepository entity for \(githubRepo.fullName)")
+                return
+            }
+            
+            // Check if MarkdownFile already exists
+            let fileFetchRequest: NSFetchRequest<MarkdownFile> = MarkdownFile.fetchRequest()
+            fileFetchRequest.predicate = NSPredicate(format: "repository == %@ AND gitFilePath == %@", gitRepository, content.path)
+            
+            let markdownFile: MarkdownFile
+            if let existingFile = try? context.fetch(fileFetchRequest).first {
+                markdownFile = existingFile
+            } else {
+                markdownFile = MarkdownFile(context: context)
+                markdownFile.setValue(UUID(), forKey: "id")
+                markdownFile.repository = gitRepository
+            }
+            
+            // Update file metadata
+            markdownFile.title = content.name.replacingOccurrences(of: ".md", with: "").replacingOccurrences(of: ".markdown", with: "")
+            markdownFile.gitFilePath = content.path
+            markdownFile.filePath = content.path // For now, same as git path
+            markdownFile.fileSize = Int64(content.size ?? 0)
+            markdownFile.lastModified = Date() // Could parse from GitHub API if available
+            markdownFile.syncStatus = SyncStatus.synced.rawValue
+            markdownFile.hasLocalChanges = false
+            markdownFile.repositoryId = gitRepository.id!
+            
+            // Create or update reading progress
+            if markdownFile.readingProgress == nil {
+                let progress = ReadingProgress(context: context)
+                progress.markdownFile = markdownFile
+                progress.fileId = markdownFile.id!
+                progress.currentPosition = 0
+                progress.isCompleted = false
+                progress.lastReadDate = Date()
+                markdownFile.readingProgress = progress
+            }
+            
+            do {
+                try context.save()
+                print("✅ Processed: \(content.name)")
+            } catch {
+                print("❌ Failed to save markdown file \(content.name): \(error)")
+            }
+        }
+    }
+    
+    private func fetchAndParseMarkdownContent(content: GitHubContent, githubRepo: GitHubRepository, context: NSManagedObjectContext) async {
+        guard let token = installationAccessToken,
+              let downloadUrl = content.downloadUrl,
+              let url = URL(string: downloadUrl) else {
+            print("❌ Cannot fetch content for \(content.name) - missing download URL or token")
+            return
+        }
+        
+        var request = URLRequest(url: url)
+        request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        
+        do {
+            let (data, response) = try await URLSession.shared.data(for: request)
+            
+            if let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode != 200 {
+                print("❌ HTTP error \(httpResponse.statusCode) for \(content.name)")
+                return
+            }
+            
+            guard let markdownText = String(data: data, encoding: .utf8) else {
+                print("❌ Could not decode markdown content for \(content.name)")
+                return
+            }
+            
+            // Parse the markdown content
+            await parseMarkdownContent(markdownText: markdownText, content: content, githubRepo: githubRepo, context: context)
+            
+        } catch {
+            print("❌ Failed to fetch markdown content for \(content.name): \(error)")
+        }
+    }
+    
+    private func parseMarkdownContent(markdownText: String, content: GitHubContent, githubRepo: GitHubRepository, context: NSManagedObjectContext) async {
+        await context.perform {
+            // Find the MarkdownFile entity
+            let repoFetchRequest: NSFetchRequest<GitRepository> = GitRepository.fetchRequest()
+            repoFetchRequest.predicate = NSPredicate(format: "remoteURL == %@", "https://github.com/\(githubRepo.fullName)")
+            
+            guard let gitRepository = try? context.fetch(repoFetchRequest).first else {
+                print("❌ Could not find GitRepository for parsing \(content.name)")
+                return
+            }
+            
+            let fileFetchRequest: NSFetchRequest<MarkdownFile> = MarkdownFile.fetchRequest()
+            fileFetchRequest.predicate = NSPredicate(format: "repository == %@ AND gitFilePath == %@", gitRepository, content.path)
+            
+            guard let markdownFile = try? context.fetch(fileFetchRequest).first else {
+                print("❌ Could not find MarkdownFile for parsing \(content.name)")
+                return
+            }
+            
+            // Parse markdown to plain text using MarkdownParser
+            let parser = MarkdownParser()
+            let parseResult = parser.parseMarkdownForTTS(markdownText)
+            let plainText = parseResult.plainText
+            let sections = parseResult.sections
+            
+            // Create or update ParsedContent
+            let parsedContent: ParsedContent
+            if let existingParsed = markdownFile.parsedContent {
+                parsedContent = existingParsed
+            } else {
+                parsedContent = ParsedContent(context: context)
+                parsedContent.markdownFiles = markdownFile
+                markdownFile.parsedContent = parsedContent
+            }
+            
+            // Update parsed content
+            parsedContent.fileId = markdownFile.id!
+            parsedContent.plainText = plainText
+            parsedContent.lastParsed = Date()
+            
+            // Clear existing sections
+            if let existingSections = parsedContent.contentSection as? Set<ContentSection> {
+                for section in existingSections {
+                    context.delete(section)
+                }
+            }
+            
+            // Create new sections
+            for section in sections {
+                let contentSection = ContentSection(context: context)
+                contentSection.startIndex = Int32(section.startIndex)
+                contentSection.endIndex = Int32(section.endIndex)
+                contentSection.type = section.type.rawValue
+                contentSection.level = Int16(section.level)
+                contentSection.isSkippable = section.isSkippable
+                contentSection.parsedContent = parsedContent
+            }
+            
+            do {
+                try context.save()
+                print("✅ Successfully parsed: \(content.name) (\(plainText.count) chars, \(sections.count) sections)")
+            } catch {
+                print("❌ Failed to save parsed content for \(content.name): \(error)")
+            }
+        }
+    }
+    
     func disconnect() {
+        print("🔓 Disconnecting GitHub App...")
+        
         isInstalled = false
         isAuthenticated = false
         installationId = nil
@@ -404,7 +746,15 @@ class GitHubAppManager: ObservableObject {
         currentUser = nil
         errorMessage = nil
         
-        // TODO: Clear stored tokens
+        // Clear stored tokens
+        clearStoredCredentials()
+    }
+    
+    private func clearStoredCredentials() {
+        UserDefaults.standard.removeObject(forKey: "github_installation_id")
+        UserDefaults.standard.removeObject(forKey: "github_user_token")
+        UserDefaults.standard.removeObject(forKey: "github_installation_token")
+        print("🗑️ Cleared stored GitHub credentials")
     }
 }
 
@@ -430,6 +780,22 @@ struct RepositoriesResponse: Codable {
     let repositories: [GitHubRepository]
 }
 
+struct GitHubUser: Codable, Identifiable {
+    let id: Int
+    let login: String
+    let name: String?
+    let email: String?
+    let avatarUrl: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case id
+        case login
+        case name
+        case email
+        case avatarUrl = "avatar_url"
+    }
+}
+
 struct GitHubRepository: Codable, Identifiable {
     let id: Int
     let name: String
@@ -441,5 +807,21 @@ struct GitHubRepository: Codable, Identifiable {
         case name
         case fullName = "full_name"
         case isPrivate = "private"
+    }
+}
+
+struct GitHubContent: Codable {
+    let name: String
+    let path: String
+    let type: String
+    let size: Int?
+    let downloadUrl: String?
+    
+    enum CodingKeys: String, CodingKey {
+        case name
+        case path
+        case type
+        case size
+        case downloadUrl = "download_url"
     }
 }

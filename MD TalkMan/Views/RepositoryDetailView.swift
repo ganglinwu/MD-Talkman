@@ -10,6 +10,7 @@ import CoreData
 
 struct RepositoryDetailView: View {
     @Environment(\.managedObjectContext) private var viewContext
+    @EnvironmentObject private var githubApp: GitHubAppManager
     
     let repository: GitRepository
     
@@ -41,16 +42,21 @@ struct RepositoryDetailView: View {
                         .multilineTextAlignment(.center)
                     
                     Button("Sync Repository") {
-                        // TODO: Implement sync functionality
+                        Task {
+                            await syncSingleRepository()
+                        }
                     }
                     .buttonStyle(.borderedProminent)
+                    .disabled(githubApp.isProcessing)
                 }
                 .padding()
             } else {
                 List(markdownFiles, id: \.id) { file in
                     NavigationLink(destination: ReaderView(markdownFile: file)) {
-                        MarkdownFileRow(file: file)
+                        MarkdownFileRow(file: file, isParsingInProgress: githubApp.isParsingFiles)
                     }
+                    .disabled(githubApp.isParsingFiles && file.parsedContent == nil)
+                    .opacity((githubApp.isParsingFiles && file.parsedContent == nil) ? 0.6 : 1.0)
                 }
             }
         }
@@ -60,7 +66,9 @@ struct RepositoryDetailView: View {
             ToolbarItem(placement: .navigationBarTrailing) {
                 Menu {
                     Button("Sync Repository") {
-                        // TODO: Implement sync
+                        Task {
+                            await syncSingleRepository()
+                        }
                     }
                     
                     Button("Repository Settings") {
@@ -78,10 +86,23 @@ struct RepositoryDetailView: View {
             }
         }
     }
+    
+    private func syncSingleRepository() async {
+        // Find the GitHub repository that matches this Core Data repository
+        let repoURL = repository.remoteURL ?? ""
+        let hasMatchingRepo = githubApp.accessibleRepositories.contains { repo in
+            repoURL.contains(repo.fullName)
+        }
+        
+        if hasMatchingRepo {
+            await githubApp.syncAllRepositories(context: viewContext)
+        }
+    }
 }
 
 struct MarkdownFileRow: View {
     let file: MarkdownFile
+    let isParsingInProgress: Bool
     
     var body: some View {
         HStack {
@@ -119,31 +140,42 @@ struct MarkdownFileRow: View {
             Spacer()
             
             VStack(alignment: .trailing, spacing: 4) {
-                // Reading Progress Indicator
-                if let progress = file.readingProgress {
+                // Parsing Status
+                if isParsingInProgress && file.parsedContent == nil {
                     VStack(alignment: .trailing, spacing: 2) {
-                        if progress.isCompleted {
-                            Image(systemName: "checkmark.circle.fill")
-                                .foregroundColor(.green)
-                        } else if progress.currentPosition > 0 {
-                            Image(systemName: "play.circle.fill")
-                                .foregroundColor(.blue)
-                            
-                            Text("\(Int(progress.currentPosition)) chars")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        } else {
-                            Image(systemName: "circle")
-                                .foregroundStyle(.tertiary)
+                        ProgressView()
+                            .scaleEffect(0.7)
+                        Text("Parsing...")
+                            .font(.caption2)
+                            .foregroundStyle(.secondary)
+                    }
+                } else {
+                    // Reading Progress Indicator
+                    if let progress = file.readingProgress {
+                        VStack(alignment: .trailing, spacing: 2) {
+                            if progress.isCompleted {
+                                Image(systemName: "checkmark.circle.fill")
+                                    .foregroundColor(.green)
+                            } else if progress.currentPosition > 0 {
+                                Image(systemName: "play.circle.fill")
+                                    .foregroundColor(.blue)
+                                
+                                Text("\(Int(progress.currentPosition)) chars")
+                                    .font(.caption2)
+                                    .foregroundStyle(.secondary)
+                            } else {
+                                Image(systemName: "circle")
+                                    .foregroundStyle(.tertiary)
+                            }
                         }
                     }
-                }
-                
-                // Parsed Content Indicator
-                if file.parsedContent != nil {
-                    Image(systemName: "waveform")
-                        .font(.caption)
-                        .foregroundColor(.green)
+                    
+                    // Parsed Content Indicator
+                    if file.parsedContent != nil {
+                        Image(systemName: "waveform")
+                            .font(.caption)
+                            .foregroundColor(.green)
+                    }
                 }
             }
         }
@@ -184,6 +216,7 @@ private let relativeDateFormatter: DateFormatter = {
             RepositoryDetailView(repository: sampleRepo)
         }
         .environment(\.managedObjectContext, context)
+        .environmentObject(GitHubAppManager())
     } else {
         return Text("No sample data available")
     }

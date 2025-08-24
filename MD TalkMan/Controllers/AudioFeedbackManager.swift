@@ -34,24 +34,8 @@ class AudioFeedbackManager: ObservableObject {
     
     // MARK: - Initialization
     init() {
-        setupAudioSession()
+        // Note: Audio session is managed by TTSManager to avoid conflicts
         hapticGenerator.prepare()
-    }
-    
-    // MARK: - Audio Session Setup
-    private func setupAudioSession() {
-        do {
-            let audioSession = AVAudioSession.sharedInstance()
-            
-            // Configure for mixing with TTS
-            try audioSession.setCategory(
-                .playback,
-                mode: .spokenAudio,
-                options: [.mixWithOthers, .allowBluetooth, .allowBluetoothA2DP]
-            )
-        } catch {
-            print("Failed to setup audio session for feedback: \(error)")
-        }
     }
     
     // MARK: - Public Interface

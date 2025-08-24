@@ -187,6 +187,54 @@ private static func getEmbeddedContent(for filePath: String) -> String {
 - **Audio-First Design**: Content structured for optimal TTS narration flow
 - **No Dependencies**: Eliminates external file requirements and permissions
 
+## GitHub Sync & Processing Architecture
+
+### Complete GitHub-to-TTS Pipeline
+The app now features a full pipeline from GitHub repositories to TTS-ready content:
+
+```swift
+// GitHub Sync Flow
+1. GitHub Authentication (JWT + Installation Tokens)
+   ↓ 
+2. Repository Discovery (GitHub Apps API)
+   ↓
+3. Markdown File Detection (.md, .markdown files)
+   ↓
+4. Content Download (raw file content via download_url)
+   ↓
+5. Markdown Parsing (MarkdownParser.parseMarkdownForTTS)
+   ↓
+6. Core Data Storage (ParsedContent + ContentSection entities)
+   ↓
+7. TTS Playback (Real GitHub content, not sample data)
+```
+
+### GitHubAppManager Features
+- **JWT Authentication**: Secure GitHub Apps integration with private key signing
+- **Token Persistence**: UserDefaults storage with automatic restoration on launch
+- **Installation Management**: Complete OAuth flow with callback handling
+- **Repository Syncing**: Full markdown file discovery and content processing
+- **Error Handling**: Comprehensive fallback strategies and user feedback
+
+### Markdown Processing System
+- **Real-time Processing**: Downloads and parses files during sync operation
+- **TTS Optimization**: Converts markdown syntax to spoken-friendly plain text
+- **Section Analysis**: Identifies headers, code blocks, and skippable content
+- **Core Data Integration**: Creates ParsedContent and ContentSection entities
+- **Content Verification**: Ensures GitHub content takes precedence over sample data
+
+### Smart Content Loading
+The ReaderView now intelligently chooses content sources:
+- **GitHub ParsedContent exists**: ✅ Uses real repository content
+- **No ParsedContent found**: 🔄 Falls back to embedded sample content
+- **Prevents Overwrites**: Never replaces GitHub content with sample data
+
+### UI Status Integration
+- **Real-time Feedback**: Shows parsing progress during sync operations
+- **Visual Indicators**: Files display parsing status and readiness
+- **Smart Disabling**: Unparsed files are disabled until processing completes
+- **Progress Tracking**: Users see file-by-file parsing progress
+
 ## Claude.ai Integration
 
 ### Voice Interaction Flow
@@ -311,6 +359,11 @@ ContentView
 - [x] **Production Webhook Server**: Go-based webhook handler deployed on EC2
 - [x] **Real APNs Integration**: Token-based push notifications for repository updates
 - [x] **Webhook Debugging & Architecture**: Complete troubleshooting documentation
+- [x] **iOS APNs Client Integration**: Complete push notification handling in iOS app
+- [x] **GitHub Management UI**: Comprehensive repository management interface
+- [x] **Real-time Markdown Processing**: Direct GitHub file fetching and parsing
+- [x] **Connection Persistence**: Auto-restore GitHub authentication on app launch
+- [x] **Smart Content Loading**: Prevents overwriting GitHub content with sample data
 
 ### Phase 3: Claude Integration
 - [ ] Integrate Speech framework for voice input
@@ -368,19 +421,39 @@ ContentView
 - Toggle show/hide with smooth animations and section progress indicators
 
 **SwiftUI Interface**
-- ContentView: Repository browser with Core Data integration
+- ContentView: Repository browser with Core Data integration and GitHub connection status
 - RepositoryDetailView: File listing with sync status indicators
 - ReaderView: Complete TTS interface with enhanced playback controls
 - VoiceSettingsView: Premium voice selection and audio customization
-- SettingsView: Developer mode toggle and data management
-- Clean navigation hierarchy with proper state management
+- SettingsView: Developer mode toggle, data management, and push notification controls
+- GitHubManagementView: Comprehensive GitHub repository management interface
+- Clean navigation hierarchy with proper state management and sheet presentations
 
 **GitHub Apps Integration**
 - JWT signing for secure GitHub API authentication
 - Installation token management with automatic refresh
 - GitHub App installation flow with OAuth callback handling
 - Repository access verification and permission management
-- GitHubManager: Complete API client with installation-based authentication
+- GitHubAppManager: Complete API client with installation-based authentication
+- Repository management UI with refresh, sync, and disconnect capabilities
+- User-friendly connection status display and repository listing
+
+**APNs Push Notification System**
+- APNsManager: Complete push notification handling with UserNotifications framework
+- AppDelegate: UIKit delegate integration for push notification callbacks
+- Device token registration with production webhook server (EC2)
+- Push notification permission flow with user-friendly UI in SettingsView
+- Repository update notifications with automatic sync triggers
+- Background notification processing and foreground display
+- Core Data integration for repository sync status updates
+
+**Complete GitHub-to-TTS Pipeline**
+- GitHubAppManager: Full repository sync with JWT authentication and token persistence
+- Real-time markdown file discovery and content downloading from GitHub API
+- Automated parsing pipeline converting GitHub markdown to TTS-ready plain text
+- Smart content loading preventing overwrite of GitHub content with sample data
+- UI status integration with parsing progress indicators and file readiness states
+- Production-ready error handling and fallback strategies for robust operation
 
 **Comprehensive Testing**
 - 21 unit tests for markdown parsing accuracy
