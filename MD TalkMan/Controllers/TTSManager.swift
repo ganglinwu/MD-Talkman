@@ -68,25 +68,33 @@ class TTSManager: NSObject, ObservableObject {
         audioSession = AVAudioSession.sharedInstance()
         
         do {
-            // Set category for spoken audio with proper Bluetooth support
-            // .spokenAudio mode is designed for TTS and doesn't work well with .allowBluetoothA2DP
-            try audioSession?.setCategory(.playback, mode: .spokenAudio, options: [.allowBluetooth, .duckOthers])
+            // Primary: Try .spokenAudio mode for optimal TTS
+            try audioSession?.setCategory(.playback, mode: .spokenAudio, options: [.allowBluetooth])
             try audioSession?.setActive(true)
-            print("✅ Audio session setup successful")
-        } catch let primaryError {
-            print("❌ Failed to setup audio session: \(primaryError)")
+            print("✅ Audio session setup successful (.spokenAudio)")
+        } catch {
+            print("⚠️ Primary audio session setup failed: \(error)")
             
-            // Fallback: Try simpler configuration
+            // Fallback 1: Try .playback with .default mode
             do {
-                try audioSession?.setCategory(.playback, mode: .default, options: [.allowBluetooth])
+                try audioSession?.setCategory(.playback, mode: .default, options: [.allowBluetooth, .duckOthers])
                 try audioSession?.setActive(true)
-                print("✅ Audio session setup successful (fallback mode)")
-            } catch let fallbackError {
-                print("❌ Fallback audio session setup also failed: \(fallbackError)")
-                // Set error state so the app can handle this gracefully
-                DispatchQueue.main.async { [weak self] in
-                    self?.playbackState = .error("Audio setup failed")
-                    self?.errorMessage = "Failed to configure audio session: \(fallbackError.localizedDescription)"
+                print("✅ Audio session setup successful (.playback + .default)")
+            } catch {
+                print("⚠️ Fallback 1 failed: \(error)")
+                
+                // Fallback 2: Minimal configuration
+                do {
+                    try audioSession?.setCategory(.playback)
+                    try audioSession?.setActive(true)
+                    print("✅ Audio session setup successful (minimal .playback)")
+                } catch let finalError {
+                    print("❌ All audio session setups failed: \(finalError)")
+                    // Set error state so the app can handle this gracefully
+                    DispatchQueue.main.async { [weak self] in
+                        self?.playbackState = .error("Audio setup failed")
+                        self?.errorMessage = "Failed to configure audio session: \(finalError.localizedDescription)"
+                    }
                 }
             }
         }
@@ -170,6 +178,10 @@ class TTSManager: NSObject, ObservableObject {
         currentMarkdownFile = markdownFile
         currentParsedContent = markdownFile.parsedContent
         
+        if currentParsedContent == nil {
+            print("⚠️ No ParsedContent found for \(markdownFile.title ?? "file") - using fallback content")
+        }
+        
         // Load content sections
         if let parsedContent = currentParsedContent,
            let sections = parsedContent.contentSection as? Set<ContentSection> {
@@ -225,6 +237,7 @@ class TTSManager: NSObject, ObservableObject {
         guard let parsedContent = currentParsedContent,
               let plainText = parsedContent.plainText,
               !plainText.isEmpty else {
+            print("❌ No content available for playback")
             playbackState = .error("No content")
             errorMessage = "No content available for playback"
             audioFeedback.playFeedback(for: .error)

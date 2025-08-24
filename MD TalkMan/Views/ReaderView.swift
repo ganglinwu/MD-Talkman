@@ -314,9 +314,12 @@ This framework will revolutionize how you build iOS apps.
     
     // MARK: - Private Methods
     private func setupContent() {
-        // Parse the sample markdown content
-        let parser = MarkdownParser()
-        parser.processAndSaveMarkdownFile(markdownFile, content: sampleMarkdown, in: viewContext)
+        // Only use sample content if no ParsedContent exists (fallback for embedded content)
+        if markdownFile.parsedContent == nil {
+            print("📖 Using sample content as fallback for \(markdownFile.title ?? "file")")
+            let parser = MarkdownParser()
+            parser.processAndSaveMarkdownFile(markdownFile, content: sampleMarkdown, in: viewContext)
+        }
         
         // Load the content into TTS manager
         ttsManager.loadMarkdownFile(markdownFile, context: viewContext)
