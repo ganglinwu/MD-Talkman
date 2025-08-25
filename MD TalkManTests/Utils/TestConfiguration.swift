@@ -7,6 +7,7 @@
 
 import Foundation
 import CoreData
+import XCTest
 @testable import MD_TalkMan
 
 // MARK: - Test Configuration and Utilities

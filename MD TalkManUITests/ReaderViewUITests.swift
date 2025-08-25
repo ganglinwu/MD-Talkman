@@ -29,9 +29,9 @@ final class ReaderViewUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Repositories"].waitForExistence(timeout: 5))
         
         // If there are repositories, tap the first one
-        let repositoryList = app.lists.firstMatch
+        let repositoryList = app.scrollViews.otherElements.firstMatch
         if repositoryList.exists {
-            let firstRepository = repositoryList.cells.firstMatch
+            let firstRepository = repositoryList.buttons.firstMatch
             if firstRepository.exists {
                 firstRepository.tap()
                 
@@ -39,9 +39,9 @@ final class ReaderViewUITests: XCTestCase {
                 XCTAssertTrue(app.navigationBars.element.waitForExistence(timeout: 3))
                 
                 // If there are files, tap the first one
-                let fileList = app.lists.firstMatch
+                let fileList = app.scrollViews.otherElements.firstMatch
                 if fileList.exists {
-                    let firstFile = fileList.cells.firstMatch
+                    let firstFile = fileList.buttons.firstMatch
                     if firstFile.exists {
                         firstFile.tap()
                         
@@ -284,14 +284,14 @@ final class ReaderViewUITests: XCTestCase {
         XCTAssertTrue(app.navigationBars["Repositories"].waitForExistence(timeout: 5))
         
         // Navigate to first repository if it exists
-        let repositoryList = app.lists.firstMatch
-        if repositoryList.exists && repositoryList.cells.count > 0 {
-            repositoryList.cells.firstMatch.tap()
+        let repositoryList = app.scrollViews.otherElements.firstMatch
+        if repositoryList.exists && repositoryList.buttons.count > 0 {
+            repositoryList.buttons.firstMatch.tap()
             
             // Navigate to first file if it exists
-            let fileList = app.lists.firstMatch
-            if fileList.waitForExistence(timeout: 3) && fileList.cells.count > 0 {
-                fileList.cells.firstMatch.tap()
+            let fileList = app.scrollViews.otherElements.firstMatch
+            if fileList.waitForExistence(timeout: 3) && fileList.buttons.count > 0 {
+                fileList.buttons.firstMatch.tap()
                 
                 // Wait for reader view to load
                 XCTAssertTrue(app.buttons["play.fill"].waitForExistence(timeout: 3))

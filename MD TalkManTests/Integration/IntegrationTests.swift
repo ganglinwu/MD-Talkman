@@ -258,7 +258,7 @@ final class IntegrationTests: XCTestCase {
         try context.save()
         
         // Verify relationships
-        guard let bookmarks = progress.bookmarks as? Set<Bookmark> else {
+        guard let bookmarks = progress.bookMark as? Set<Bookmark> else {
             XCTFail("Bookmarks not properly related")
             return
         }
