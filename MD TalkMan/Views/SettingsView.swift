@@ -11,8 +11,10 @@ import CoreData
 struct SettingsView: View {
     @Environment(\.managedObjectContext) private var viewContext
     @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject var apnsManager: APNsManager
     @StateObject private var settingsManager = SettingsManager.shared
     @State private var showingClearDataAlert = false
+    @State private var isRequestingPermission = false
     
     var body: some View {
         NavigationView {
@@ -51,6 +53,59 @@ struct SettingsView: View {
                     } else {
                         Text("Enable developer mode to access sample data for testing TTS functionality.")
                     }
+                }
+                
+                Section {
+                    HStack {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Push Notifications")
+                                .font(.body)
+                            
+                            Text(notificationStatusText)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                        
+                        if apnsManager.authorizationStatus == .notDetermined {
+                            Button("Enable") {
+                                requestNotificationPermission()
+                            }
+                            .disabled(isRequestingPermission)
+                        } else {
+                            Image(systemName: notificationStatusIcon)
+                                .foregroundColor(notificationStatusColor)
+                        }
+                    }
+                    
+                    if settingsManager.isDeveloperModeEnabled && apnsManager.deviceToken != nil {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Device Token (Debug)")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(apnsManager.deviceToken?.prefix(16) ?? "None")
+                                .font(.system(.caption, design: .monospaced))
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    
+                    if apnsManager.lastNotificationReceived != nil {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Last Notification")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            if let repo = apnsManager.lastNotificationReceived?["repository"] as? String {
+                                Text("Repository: \(repo)")
+                                    .font(.caption2)
+                                    .foregroundColor(.secondary)
+                            }
+                        }
+                    }
+                } header: {
+                    Text("Notifications")
+                } footer: {
+                    Text("Get notified when your GitHub repositories are updated with new markdown content.")
                 }
                 
                 if settingsManager.isDeveloperModeEnabled {
@@ -98,6 +153,70 @@ struct SettingsView: View {
                 }
             } message: {
                 Text("This will remove all repositories, files, and reading progress. This action cannot be undone.")
+            }
+        }
+    }
+    
+    // MARK: - Notification Status Helpers
+    
+    private var notificationStatusText: String {
+        switch apnsManager.authorizationStatus {
+        case .authorized:
+            return apnsManager.isRegistered ? "Enabled" : "Registering..."
+        case .denied:
+            return "Disabled - Check Settings"
+        case .notDetermined:
+            return "Not configured"
+        case .provisional:
+            return "Provisional access"
+        case .ephemeral:
+            return "Ephemeral access"
+        @unknown default:
+            return "Unknown status"
+        }
+    }
+    
+    private var notificationStatusIcon: String {
+        switch apnsManager.authorizationStatus {
+        case .authorized:
+            return apnsManager.isRegistered ? "checkmark.circle.fill" : "clock.circle"
+        case .denied:
+            return "xmark.circle.fill"
+        case .notDetermined:
+            return "questionmark.circle"
+        case .provisional, .ephemeral:
+            return "checkmark.circle"
+        @unknown default:
+            return "questionmark.circle"
+        }
+    }
+    
+    private var notificationStatusColor: Color {
+        switch apnsManager.authorizationStatus {
+        case .authorized:
+            return apnsManager.isRegistered ? .green : .orange
+        case .denied:
+            return .red
+        case .notDetermined:
+            return .secondary
+        case .provisional, .ephemeral:
+            return .blue
+        @unknown default:
+            return .secondary
+        }
+    }
+    
+    private func requestNotificationPermission() {
+        isRequestingPermission = true
+        
+        Task {
+            let granted = await apnsManager.requestPermission()
+            await MainActor.run {
+                isRequestingPermission = false
+                if !granted {
+                    // Could show an alert explaining why notifications are useful
+                    print("📱 Notification permission denied by user")
+                }
             }
         }
     }

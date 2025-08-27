@@ -25,45 +25,46 @@ struct ContentView: View {
             VStack {
                 // GitHub Integration Status
                 if githubApp.isAuthenticated {
-                    VStack(spacing: 8) {
-                        HStack {
+                    HStack(spacing: 12) {
+                        // Connection Status
+                        HStack(spacing: 6) {
                             Image(systemName: "checkmark.circle.fill")
                                 .foregroundColor(.green)
                             Text("GitHub Connected")
                                 .font(.headline)
-                            Spacer()
                         }
                         
-                        HStack {
-                            if githubApp.isProcessing {
-                                HStack(spacing: 4) {
-                                    ProgressView()
-                                        .scaleEffect(0.6)
-                                    Text("Syncing...")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            } else if githubApp.isParsingFiles {
-                                HStack(spacing: 4) {
-                                    ProgressView()
-                                        .scaleEffect(0.6)
-                                    Text("Parsing files...")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
-                            } else {
-                                Text("\(githubApp.accessibleRepositories.count) repositories")
+                        Spacer()
+                        
+                        // Activity & Stats
+                        if githubApp.isProcessing {
+                            HStack(spacing: 4) {
+                                ProgressView()
+                                    .scaleEffect(0.6)
+                                Text("Syncing...")
                                     .font(.caption)
                                     .foregroundColor(.secondary)
                             }
-                            
-                            Spacer()
-                            Button("Manage") {
-                                showingGitHubManagement = true
+                        } else if githubApp.isParsingFiles {
+                            HStack(spacing: 4) {
+                                ProgressView()
+                                    .scaleEffect(0.6)
+                                Text("Parsing...")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
-                            .font(.caption)
-                            .buttonStyle(.bordered)
+                        } else {
+                            Text("\(repositories.count) repos • \(githubApp.accessibleRepositories.count) accessible")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
                         }
+                        
+                        // Management Button
+                        Button("Manage") {
+                            showingGitHubManagement = true
+                        }
+                        .font(.caption)
+                        .buttonStyle(.bordered)
                     }
                     .padding()
                     .background(Color.green.opacity(0.1))

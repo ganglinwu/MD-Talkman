@@ -16,9 +16,19 @@
       "Bash(git rm:*)",
       "Bash(docker build:*)",
       "Bash(go mod:*)",
-      "Bash(rm:*)"
+      "Bash(rm:*)",
+      "Bash(xcrun swiftc:*)",
+      "Read(//Users/ganglinwu/.claude/**)",
+      "Read(//Users/ganglinwu/.claude/**)",
+      "Read(//Users/ganglinwu/.claude/**)",
+      "Bash(awk:*)",
+      "Bash(sed:*)"
     ],
     "deny": [],
-    "ask": []
-  }
+    "ask": [],
+    "additionalDirectories": [
+      "/Users/ganglinwu/Desktop"
+    ]
+  },
+  "outputStyle": "Learning"
 }

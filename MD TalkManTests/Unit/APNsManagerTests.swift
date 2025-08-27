@@ -18,21 +18,15 @@ final class APNsManagerTests: XCTestCase {
     var testContainer: NSPersistentContainer!
     
     override func setUpWithError() throws {
-        // Create in-memory Core Data stack for testing
-        testContainer = NSPersistentContainer(name: "DataModel")
-        let description = testContainer.persistentStoreDescriptions.first!
-        description.url = URL(fileURLWithPath: "/dev/null")
-        
-        testContainer.loadPersistentStores { _, error in
-            XCTAssertNil(error)
-        }
-        
+        // Create test persistence controller with in-memory store
+        let testPersistenceController = PersistenceController(inMemory: true)
+        testContainer = testPersistenceController.container
         mockContext = testContainer.viewContext
         
-        // Use the shared instance for testing
-        apnsManager = APNsManager.shared
+        // Create APNsManager with test persistence controller
+        apnsManager = APNsManager(persistenceController: testPersistenceController)
         
-        // Reset the shared instance state for clean testing
+        // Reset the instance state for clean testing
         resetAPNsManagerState()
     }
     
@@ -68,8 +62,19 @@ final class APNsManagerTests: XCTestCase {
         // Create mock device token data
         let mockTokenData = Data([0x12, 0x34, 0x56, 0x78, 0xAB, 0xCD, 0xEF, 0x00])
         
+        // Create expectation for async operation
+        let expectation = expectation(description: "Device token should be set")
+        
         // Process the token
         apnsManager.didRegisterForRemoteNotifications(withDeviceToken: mockTokenData)
+        
+        // Wait for the async dispatch to main queue to complete
+        DispatchQueue.main.async {
+            expectation.fulfill()
+        }
+        
+        // Wait for expectation
+        waitForExpectations(timeout: 1.0)
         
         // Verify token conversion - each byte formatted as 2-digit lowercase hex
         XCTAssertNotNil(apnsManager.deviceToken)

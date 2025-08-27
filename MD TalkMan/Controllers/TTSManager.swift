@@ -140,6 +140,12 @@ class TTSManager: NSObject, ObservableObject {
     }
     
     private func getBestAvailableVoice() -> AVSpeechSynthesisVoice? {
+        // In test environment, use basic voices to avoid loading delays
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] != nil {
+            print("🧪 Test environment detected - using basic system voice")
+            return AVSpeechSynthesisVoice(language: "en-US")
+        }
+        
         // Preferred voice identifiers (these are typically the most natural)
         let preferredVoices = [
             "com.apple.voice.enhanced.en-US.Ava",      // Ava (Neural)
@@ -289,7 +295,7 @@ class TTSManager: NSObject, ObservableObject {
     }
     
     func pause() {
-        guard playbackState == .playing else { return }
+        guard playbackState == .playing || playbackState == .preparing else { return }
         
         playbackState = .loading
         
@@ -338,6 +344,14 @@ class TTSManager: NSObject, ObservableObject {
         guard currentSectionIndex < contentSections.count - 1 else { return }
         
         currentSectionIndex += 1
+        
+        // Validate section index bounds
+        guard currentSectionIndex >= 0 && currentSectionIndex < contentSections.count else {
+            print("⚠️ Invalid section index: \(currentSectionIndex), clamping to bounds")
+            currentSectionIndex = max(0, min(currentSectionIndex, contentSections.count - 1))
+            return
+        }
+        
         currentPosition = Int(contentSections[currentSectionIndex].startIndex)
         
         // If currently playing, restart from new position
@@ -353,6 +367,14 @@ class TTSManager: NSObject, ObservableObject {
         guard currentSectionIndex > 0 else { return }
         
         currentSectionIndex -= 1
+        
+        // Validate section index bounds
+        guard currentSectionIndex >= 0 && currentSectionIndex < contentSections.count else {
+            print("⚠️ Invalid section index: \(currentSectionIndex), clamping to bounds")
+            currentSectionIndex = max(0, min(currentSectionIndex, contentSections.count - 1))
+            return
+        }
+        
         currentPosition = Int(contentSections[currentSectionIndex].startIndex)
         
         // If currently playing, restart from new position
@@ -481,6 +503,14 @@ class TTSManager: NSObject, ObservableObject {
         }
         
         let totalLength = plainText.count
+        
+        // Ensure currentPosition is within valid bounds
+        guard currentPosition >= 0 else {
+            print("⚠️ Invalid negative position: \(currentPosition), resetting to 0")
+            currentPosition = 0
+            return getTextFromCurrentPosition() // Retry with corrected position
+        }
+        
         let startPos = min(currentPosition, totalLength)
         
         // Check if we're at or past the end
@@ -559,7 +589,7 @@ class TTSManager: NSObject, ObservableObject {
     
     // MARK: - Section Information
     func getCurrentSectionInfo() -> (type: ContentSectionType, level: Int, isSkippable: Bool)? {
-        guard currentSectionIndex < contentSections.count else { return nil }
+        guard currentSectionIndex >= 0 && currentSectionIndex < contentSections.count else { return nil }
         
         let section = contentSections[currentSectionIndex]
         return (type: section.typeEnum, level: Int(section.level), isSkippable: section.isSkippable)

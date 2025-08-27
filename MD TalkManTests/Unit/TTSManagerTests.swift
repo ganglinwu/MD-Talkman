@@ -413,7 +413,7 @@ final class TTSManagerTests: XCTestCase {
 
 // MARK: - Mock TTS Manager for UI Tests
 
-class MockTTSManager: TTSManager {
+class MockTTSManager: TTSManager, @unchecked Sendable {
     
     override init() {
         super.init()

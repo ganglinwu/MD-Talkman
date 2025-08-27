@@ -75,8 +75,9 @@ class MarkdownParser {
             i += 1
         }
         
-        return (plainText: processedText.trimmingCharacters(in: .whitespacesAndNewlines), 
-                sections: sections)
+        // Return processed text without trimming to maintain section index consistency
+        // Trimming would require adjusting all section indices, but they're immutable (let constants)
+        return (plainText: processedText, sections: sections)
     }
     
     // MARK: - Header Parsing
@@ -100,6 +101,7 @@ class MarkdownParser {
         
         // Extract header text
         let headerText = String(trimmed.dropFirst(level)).trimmingCharacters(in: .whitespaces)
+        guard !headerText.isEmpty else { return nil } // Reject empty headers
         let cleanText = removeMarkdownFormatting(headerText)
         
         // Convert to speech-friendly format
@@ -260,11 +262,11 @@ class MarkdownParser {
         // Remove inline code (`text`)
         result = result.replacingOccurrences(of: #"`([^`]+)`"#, with: "$1", options: .regularExpression)
         
+        // Remove images FIRST ![alt](url) -> Image: alt text
+        result = result.replacingOccurrences(of: #"!\[([^\]]*)\]\([^)]+\)"#, with: "Image: $1", options: .regularExpression)
+        
         // Remove links [text](url) -> text
         result = result.replacingOccurrences(of: #"\[([^\]]+)\]\([^)]+\)"#, with: "$1", options: .regularExpression)
-        
-        // Remove images ![alt](url) -> alt text
-        result = result.replacingOccurrences(of: #"!\[([^\]]*)\]\([^)]+\)"#, with: "Image: $1", options: .regularExpression)
         
         // Remove strikethrough (~~text~~)
         result = result.replacingOccurrences(of: #"~~([^~]+)~~"#, with: "$1", options: .regularExpression)

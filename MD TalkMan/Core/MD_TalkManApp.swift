@@ -6,11 +6,15 @@
 //
 
 import SwiftUI
+import UserNotifications
 
 @main
 struct MD_TalkManApp: App {
+    @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
+    
     let persistenceController = PersistenceController.shared
     @StateObject private var githubApp = GitHubAppManager()
+    @StateObject private var apnsManager = APNsManager.shared
     
     init() {
         print("🚀 App: MD_TalkManApp init called")
@@ -23,6 +27,11 @@ struct MD_TalkManApp: App {
             ContentView()
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environmentObject(githubApp)
+                .environmentObject(apnsManager)
+                .onAppear {
+                    // Connect APNsManager to AppDelegate
+                    appDelegate.apnsManager = apnsManager
+                }
                 .onOpenURL { url in
                     // Handle GitHub App callbacks
                     if url.scheme == "mdtalkman" {

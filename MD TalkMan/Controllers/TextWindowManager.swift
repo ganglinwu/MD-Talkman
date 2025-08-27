@@ -123,7 +123,8 @@ class TextWindowManager: ObservableObject {
         
         // Trim to maximum display length if needed
         if displayText.count > maxDisplayLength {
-            let maxIndex = displayText.index(displayText.startIndex, offsetBy: maxDisplayLength)
+            let safeOffset = min(maxDisplayLength, displayText.count)
+            let maxIndex = displayText.index(displayText.startIndex, offsetBy: safeOffset)
             displayText = String(displayText[..<maxIndex]) + "..."
         }
         

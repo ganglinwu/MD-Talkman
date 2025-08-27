@@ -195,6 +195,7 @@ This framework will revolutionize how you build iOS apps.
                         get: { ttsManager.playbackSpeed },
                         set: { ttsManager.setPlaybackSpeed($0) }
                     ), in: 0.5...2.0, step: 0.1)
+                    .accessibilityIdentifier("speedSlider")
                 }
                 
                 // Visual Text Display Toggle
@@ -242,6 +243,7 @@ This framework will revolutionize how you build iOS apps.
                         Image(systemName: "gobackward.5")
                             .font(.title2)
                     }
+                    .accessibilityIdentifier("gobackward.5")
                     .disabled(ttsManager.playbackState == .preparing || ttsManager.playbackState == .loading)
                     
                     Button(action: togglePlayback) {
@@ -252,6 +254,7 @@ This framework will revolutionize how you build iOS apps.
                             .foregroundColor(.white)
                             .clipShape(Circle())
                     }
+                    .accessibilityIdentifier(playPauseIcon)
                     .disabled(ttsManager.playbackState == .preparing || ttsManager.playbackState == .loading)
                     
                     Button(action: { 
@@ -261,6 +264,7 @@ This framework will revolutionize how you build iOS apps.
                         Image(systemName: "stop.fill")
                             .font(.title2)
                     }
+                    .accessibilityIdentifier("stop.fill")
                     .disabled(ttsManager.playbackState == .idle)
                 }
                 
@@ -270,12 +274,14 @@ This framework will revolutionize how you build iOS apps.
                         ttsManager.getAudioFeedbackManager().playFeedback(for: .buttonTap)
                         ttsManager.skipToPreviousSection()
                     }
+                    .accessibilityIdentifier("Previous Section")
                     .disabled(ttsManager.currentSectionIndex <= 0)
                     
                     Button("Next Section") {
                         ttsManager.getAudioFeedbackManager().playFeedback(for: .buttonTap)
                         ttsManager.skipToNextSection()
                     }
+                    .accessibilityIdentifier("Next Section")
                     .disabled(ttsManager.currentSectionIndex >= (markdownFile.parsedContent?.contentSection?.count ?? 1) - 1)
                 }
                 .font(.subheadline)
@@ -286,6 +292,7 @@ This framework will revolutionize how you build iOS apps.
                         ttsManager.getAudioFeedbackManager().playFeedback(for: .buttonTap)
                         ttsManager.skipToNextSection()
                     }
+                    .accessibilityIdentifier("Skip Technical Section")
                     .foregroundColor(.orange)
                     .font(.subheadline)
                 }

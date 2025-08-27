@@ -6,7 +6,7 @@ A SwiftUI app for hands-free markdown reading with Claude.ai integration, design
 
 MD TalkMan transforms markdown documents into an audio-first experience, perfect for consuming technical content while driving, walking, or when visual attention isn't available. The app integrates with GitHub repositories and Claude.ai for intelligent content interaction.
 
-## ✅ Current Status: Phase 2 Complete - Production Webhook System
+## ✅ Current Status: Phase 2+ Complete - APNs Integration & GitHub Management UI
 
 ### 🎵 **Audio-First Markdown Experience**
 - **Smart TTS Conversion**: Markdown syntax is transformed into natural speech
@@ -120,10 +120,11 @@ xcodebuild test -project "MD TalkMan.xcodeproj" -scheme "MD TalkMan" -only-testi
 
 ### 🔗 **GitHub Integration & Webhook System**
 - **GitHub Apps Authentication**: JWT-based secure API access
-- **Repository Management**: Browse and access GitHub repositories
+- **Repository Management UI**: Comprehensive management interface with refresh, sync, and disconnect
 - **Installation Flow**: OAuth-based GitHub App installation
 - **Production Webhook Server**: Go-based webhook handler deployed on EC2
 - **Real APNs Integration**: Token-based push notifications for repository updates
+- **iOS Push Notification Client**: Complete APNs handling with permission management
 - **AWS CloudFront Resolution**: Comprehensive webhook debugging and architecture
 
 ### 🛠️ **Production Infrastructure**
@@ -132,6 +133,27 @@ xcodebuild test -project "MD TalkMan.xcodeproj" -scheme "MD TalkMan" -only-testi
 - **APNs Push Notifications**: Real-time repository update notifications
 - **GitHub Webhook Processing**: Smart markdown file change detection
 - **EC2 Production Deployment**: Scalable webhook processing infrastructure
+
+## 🎉 **Recent Updates (August 2025)**
+
+### APNs Push Notification Integration Complete ✅
+- **iOS Client Integration**: Full push notification handling with UserNotifications framework
+- **Device Token Management**: Automatic registration with production webhook server
+- **Permission Flow**: User-friendly permission request and status display in Settings
+- **Background Processing**: Handle notifications when app is backgrounded or inactive
+- **Repository Sync Triggers**: Automatic Core Data updates when repository changes arrive
+
+### GitHub Management UI Enhancement ✅
+- **Fixed Critical Bug**: "Manage" button no longer disconnects GitHub (now opens proper management UI)
+- **Comprehensive Interface**: Repository listing, connection status, user information
+- **Safe Actions**: Refresh repositories, sync all, disconnect with confirmation
+- **Better UX**: Users can manage GitHub connection without accidental disconnections
+
+### Build & Compatibility Improvements ✅
+- **iOS 18 Compatibility**: Fixed deprecated String initializers
+- **Swift Concurrency**: Proper async/await handling with @Sendable closures
+- **Memory Management**: Fixed retain cycles and weak self patterns
+- **Type Safety**: Added missing GitHubUser model for complete API integration
 
 ## 📋 **Roadmap**
 
@@ -142,6 +164,8 @@ xcodebuild test -project "MD TalkMan.xcodeproj" -scheme "MD TalkMan" -only-testi
 - [x] Repository and file browser UI with GitHub integration
 - [x] Production webhook server deployed on EC2
 - [x] Real APNs integration with token-based authentication
+- [x] iOS APNs client integration with push notification handling
+- [x] GitHub Management UI with proper repository management
 - [x] Webhook debugging and architecture documentation
 
 ### Phase 3: Claude.ai Integration

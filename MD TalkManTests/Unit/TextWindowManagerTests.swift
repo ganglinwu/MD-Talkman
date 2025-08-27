@@ -57,14 +57,19 @@ final class TextWindowManagerTests: XCTestCase {
         This is the fifth and final paragraph that wraps up all the content with a comprehensive summary.
         """
         
-        // Create test sections matching the text above
-        testSections = [
-            createTestSection(start: 0, end: 102, type: .paragraph, level: 0), // First paragraph
-            createTestSection(start: 104, end: 211, type: .paragraph, level: 0), // Second paragraph
-            createTestSection(start: 213, end: 319, type: .paragraph, level: 0), // Third paragraph
-            createTestSection(start: 321, end: 430, type: .paragraph, level: 0), // Fourth paragraph
-            createTestSection(start: 432, end: 541, type: .paragraph, level: 0)  // Fifth paragraph
-        ]
+        // Calculate actual section boundaries based on text content
+        let paragraphs = testPlainText.components(separatedBy: "\n\n")
+        var sections: [ContentSection] = []
+        var currentIndex = 0
+        
+        for (index, paragraph) in paragraphs.enumerated() {
+            let startIndex = currentIndex
+            let endIndex = currentIndex + paragraph.count
+            sections.append(createTestSection(start: startIndex, end: endIndex, type: .paragraph, level: 0))
+            currentIndex = endIndex + 2 // +2 for the "\n\n" separator between paragraphs
+        }
+        
+        testSections = sections
     }
     
     private func createTestSection(start: Int, end: Int, type: ContentSectionType, level: Int) -> ContentSection {
@@ -123,7 +128,7 @@ final class TextWindowManagerTests: XCTestCase {
     func testWindowUpdateMiddleSection() throws {
         windowManager.loadContent(sections: testSections, plainText: testPlainText)
         
-        // Update to position in middle section (section 2, index 1)
+        // Update to position in middle section (section 2, index 2)
         windowManager.updateWindow(for: 250)
         
         XCTAssertEqual(windowManager.currentSectionIndex, 2)
@@ -232,7 +237,8 @@ final class TextWindowManagerTests: XCTestCase {
         XCTAssertEqual(windowManager.currentSectionIndex, 2)
         
         if let position = position {
-            XCTAssertEqual(position, 213) // Start of third section
+            // Should return the start index of section 2 (third section)
+            XCTAssertEqual(position, Int(testSections[2].startIndex))
         }
     }
     
@@ -253,7 +259,7 @@ final class TextWindowManagerTests: XCTestCase {
         
         let lastSection = windowManager.navigateToSection(4)
         XCTAssertNotNil(lastSection)
-        XCTAssertEqual(lastSection, 432)
+        XCTAssertEqual(lastSection, Int(testSections[4].startIndex))
     }
     
     func testGetCurrentSectionInfo() throws {

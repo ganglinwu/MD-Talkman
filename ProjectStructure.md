@@ -8,20 +8,27 @@ The project is organized using a clean architecture pattern with separation of c
 ```
 MD TalkMan/
 ├── Core/                          # App entry point and core configuration
-│   └── MD_TalkManApp.swift       # Main app entry point with Core Data setup
+│   ├── MD_TalkManApp.swift       # Main app entry point with Core Data and APNs setup
+│   └── AppDelegate.swift         # UIKit delegate for push notification callbacks
 │
 ├── Views/                         # SwiftUI Views (Presentation Layer)
-│   ├── ContentView.swift         # Main repository browser
+│   ├── ContentView.swift         # Main repository browser with GitHub connection status
 │   ├── RepositoryDetailView.swift # File listing within repositories
 │   ├── ReaderView.swift          # TTS reader interface with controls
 │   ├── VoiceSettingsView.swift   # Premium voice selection and audio customization
-│   └── SettingsView.swift        # Developer mode and app settings
+│   ├── SettingsView.swift        # Developer mode and app settings with APNs controls
+│   ├── GitHubManagementView.swift # GitHub repository management interface
+│   ├── VisualTextDisplayView.swift # Real-time text display with TTS synchronization
+│   └── AudioFeedbackSettingsView.swift # Haptic feedback configuration
 │
 ├── Controllers/                   # Business Logic and State Management
 │   ├── PersistenceController.swift # Core Data stack management
 │   ├── TTSManager.swift          # Text-to-speech playback controller with haptic feedback
 │   ├── SettingsManager.swift     # Developer mode and app settings management
-│   └── AudioFeedbackManager.swift # Haptic and audio feedback system
+│   ├── AudioFeedbackManager.swift # Haptic and audio feedback system
+│   ├── GitHubAppManager.swift    # GitHub Apps integration and API client
+│   ├── APNsManager.swift         # Push notification handling and device token management
+│   └── TextWindowManager.swift   # Text windowing for visual display synchronization
 │
 ├── Models/                        # Data Models and Core Data Schema
 │   ├── DataModel.xcdatamodeld/   # Core Data model definition
@@ -71,6 +78,7 @@ Documentation/
 ├── CLAUDE.md                     # Complete project documentation
 ├── PersistentController.md      # Core Data architecture guide
 ├── TestSummary.md               # Test coverage summary
+├── Phase-3-Completion-Summary.md # Phase 3 milestone achievement report
 └── ProjectStructure.md          # This file
 ```
 
@@ -229,3 +237,28 @@ Core Data → PersistenceController → SQLite Database
 - Organized by test type (Unit/, Integration/, Utils/)
 
 This structure provides a solid foundation for continued development while maintaining code quality and developer productivity.
+
+## Recent Updates (August 2025)
+
+### APNs Integration Complete
+- **APNsManager.swift**: Full push notification handling with UserNotifications framework
+- **AppDelegate.swift**: UIKit delegate for push notification callbacks
+- **Settings Integration**: Push notification permission UI and status display
+- **Production Ready**: Configured for existing webhook server on EC2
+
+### GitHub Management UI Enhancement
+- **GitHubManagementView.swift**: Comprehensive repository management interface
+- **Fixed "Manage" Button**: Now opens management UI instead of disconnecting
+- **Repository Actions**: Refresh, sync, and safe disconnect with confirmation
+- **User Experience**: Proper connection management without accidental disconnections
+
+### Enhanced Controllers
+- **GitHubAppManager.swift**: Added repository management methods (`refreshRepositories`, `syncAllRepositories`)
+- **TextWindowManager.swift**: Intelligent text windowing for visual display
+- **Build Fixes**: iOS 18 compatibility updates for deprecated String initializers
+
+### Complete Integration
+- **Full End-to-End Flow**: GitHub → Webhook → APNs → iOS App → Repository Sync
+- **Production Deployment**: Webhook server operational with APNs integration
+- **User Interface**: Complete management interfaces for GitHub and notifications
+- **Error Handling**: Comprehensive error states and user feedback

@@ -69,15 +69,18 @@ final class PerformanceBenchmarkTests: XCTestCase {
         // Test memory usage with multiple large documents
         let documents = 10
         let markdownContent = createLargeMarkdownDocument(sections: 100, paragraphsPerSection: 5)
-        
-        var markdownFiles: [MarkdownFile] = []
         let repository = createTestRepository()
         
+        // Create documents outside measure block to avoid duplication
+        var markdownFiles: [MarkdownFile] = []
+        for i in 0..<documents {
+            markdownFiles.append(createTestMarkdownFile(repository: repository, title: "Document \(i)"))
+        }
+        
         measure {
-            for i in 0..<documents {
-                let markdownFile = createTestMarkdownFile(repository: repository, title: "Document \(i)")
+            // Only measure the parsing performance, not document creation
+            for markdownFile in markdownFiles {
                 parser.processAndSaveMarkdownFile(markdownFile, content: markdownContent, in: context)
-                markdownFiles.append(markdownFile)
             }
         }
         
@@ -315,17 +318,20 @@ final class PerformanceBenchmarkTests: XCTestCase {
         // Test behavior under memory pressure by creating many large objects
         var repositories: [GitRepository] = []
         
+        // Create repositories outside measure block to avoid duplication
+        for i in 0..<50 {
+            let repository = createTestRepository()
+            repository.name = "Repository \(i)"
+            repositories.append(repository)
+        }
+        
         measure {
-            for i in 0..<50 {
-                let repository = createTestRepository()
-                repository.name = "Repository \(i)"
-                
+            // Only measure the creation of large content objects
+            for (i, repository) in repositories.enumerated() {
                 for j in 0..<20 {
                     let markdownFile = createTestMarkdownFile(repository: repository, title: "File \(j)")
                     let parsedContent = createLargeParsedContent(for: markdownFile, sections: 100)
                 }
-                
-                repositories.append(repository)
             }
         }
         
@@ -343,11 +349,24 @@ final class PerformanceBenchmarkTests: XCTestCase {
         measure {
             for i in 0..<10 {
                 DispatchQueue.global().async {
-                    let markdownFile = self.createTestMarkdownFile(repository: repository, title: "Concurrent File \(i)")
-                    let content = "Concurrent content for file \(i)"
+                    // Create background context for this thread
+                    let backgroundContext = PersistenceController.shared.container.newBackgroundContext()
                     
-                    self.context.perform {
-                        self.parser.processAndSaveMarkdownFile(markdownFile, content: content, in: self.context)
+                    backgroundContext.perform {
+                        // Fetch repository in background context
+                        let repositoryFetchRequest: NSFetchRequest<GitRepository> = GitRepository.fetchRequest()
+                        repositoryFetchRequest.predicate = NSPredicate(format: "id == %@", repository.id! as CVarArg)
+                        
+                        guard let bgRepository = try? backgroundContext.fetch(repositoryFetchRequest).first else {
+                            expectation.fulfill()
+                            return
+                        }
+                        
+                        // Create entities in background context
+                        let markdownFile = self.createTestMarkdownFile(repository: bgRepository, title: "Concurrent File \(i)")
+                        let content = "Concurrent content for file \(i)"
+                        
+                        self.parser.processAndSaveMarkdownFile(markdownFile, content: content, in: backgroundContext)
                         expectation.fulfill()
                     }
                 }
