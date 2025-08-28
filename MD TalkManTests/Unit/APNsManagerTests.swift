@@ -182,7 +182,7 @@ final class APNsManagerTests: XCTestCase {
     
     private func createTestRepository() -> GitRepository {
         let repository = GitRepository(context: mockContext)
-        repository.id = UUID()
+        // Core Data automatically generates UUID for ID
         repository.name = "Test Repository"
         repository.remoteURL = "https://github.com/test/repo"
         repository.localPath = "/test/repo"
