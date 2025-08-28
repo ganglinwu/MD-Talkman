@@ -92,7 +92,7 @@ final class MarkdownParserTests: XCTestCase {
         let codeSection = result.sections[1]
         XCTAssertEqual(codeSection.type, .codeBlock)
         XCTAssertTrue(codeSection.isSkippable)
-        XCTAssertEqual(codeSection.spokenText, "Code block in swift begins. [Code content omitted for brevity] Code block ends. ")
+        XCTAssertEqual(codeSection.spokenText, "[swift code] ")
     }
     
     func testCodeBlockWithoutLanguage() throws {
@@ -106,7 +106,7 @@ final class MarkdownParserTests: XCTestCase {
         
         XCTAssertEqual(result.sections.count, 1)
         let codeSection = result.sections[0]
-        XCTAssertEqual(codeSection.spokenText, "Code block begins. [Code content omitted for brevity] Code block ends. ")
+        XCTAssertEqual(codeSection.spokenText, "[code] ")
     }
     
     func testUnclosedCodeBlock() throws {

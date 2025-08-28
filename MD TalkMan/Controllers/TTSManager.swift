@@ -44,6 +44,9 @@ class TTSManager: NSObject, ObservableObject {
     // Available enhanced voices
     private var enhancedVoices: [AVSpeechSynthesisVoice] = []
     
+    // Settings integration
+    private let settingsManager = SettingsManager.shared
+    
     // Current content
     private var currentMarkdownFile: MarkdownFile?
     private var currentParsedContent: ParsedContent?
@@ -51,6 +54,10 @@ class TTSManager: NSObject, ObservableObject {
     private var currentUtterance: AVSpeechUtterance?
     private var utteranceStartPosition: Int = 0  // Track where current utterance starts
     private var userRequestedStop: Bool = false  // Track if user explicitly stopped playback
+    
+    // Volume fading
+    private var fadeTimer: Timer?
+    private var originalTTSVolume: Float = 1.0
     
     // Navigation
     private var skippableSections: Set<Int> = []
@@ -289,9 +296,12 @@ class TTSManager: NSObject, ObservableObject {
         // Remember where this utterance starts in the document
         utteranceStartPosition = currentPosition
         
-        // Start speaking
-        synthesizer.speak(currentUtterance!)
-        // Note: State will be updated by delegate methods
+        // Add longer pause to allow tones to complete and create breathing room
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+            guard let self = self, let utterance = self.currentUtterance else { return }
+            self.synthesizer.speak(utterance)
+            // Note: State will be updated by delegate methods
+        }
     }
     
     func pause() {
@@ -474,11 +484,71 @@ class TTSManager: NSObject, ObservableObject {
         // Volume control
         utterance.volume = volumeMultiplier
         
-        // Pre-utterance delay (slight pause before speaking)
-        utterance.preUtteranceDelay = 0.1
+        // Extended pre-utterance delay for smoother transitions
+        utterance.preUtteranceDelay = 0.3
         
-        // Post-utterance delay (slight pause after speaking)
-        utterance.postUtteranceDelay = 0.1
+        // Extended post-utterance delay for breathing room 
+        utterance.postUtteranceDelay = 0.4
+    }
+    
+    // MARK: - Volume Fading
+    private func startVolumeFedeIn() {
+        originalTTSVolume = volumeMultiplier
+        
+        // Start from low volume
+        volumeMultiplier = 0.1
+        
+        let fadeSteps = 10
+        let stepInterval = 0.03  // 30ms intervals
+        let volumeStep = (originalTTSVolume - 0.1) / Float(fadeSteps)
+        
+        var currentStep = 0
+        fadeTimer = Timer.scheduledTimer(withTimeInterval: stepInterval, repeats: true) { [weak self] timer in
+            guard let self = self else {
+                timer.invalidate()
+                return
+            }
+            
+            currentStep += 1
+            self.volumeMultiplier = min(0.1 + volumeStep * Float(currentStep), self.originalTTSVolume)
+            
+            if currentStep >= fadeSteps {
+                timer.invalidate()
+                self.fadeTimer = nil
+                self.volumeMultiplier = self.originalTTSVolume
+            }
+        }
+    }
+    
+    private func startVolumeFadeOut(completion: @escaping () -> Void) {
+        let fadeSteps = 8
+        let stepInterval = 0.05  // 50ms intervals  
+        let startVolume = volumeMultiplier
+        let volumeStep = startVolume / Float(fadeSteps)
+        
+        var currentStep = 0
+        fadeTimer = Timer.scheduledTimer(withTimeInterval: stepInterval, repeats: true) { [weak self] timer in
+            guard let self = self else {
+                timer.invalidate()
+                completion()
+                return
+            }
+            
+            currentStep += 1
+            self.volumeMultiplier = max(startVolume - volumeStep * Float(currentStep), 0.1)
+            
+            if currentStep >= fadeSteps {
+                timer.invalidate()
+                self.fadeTimer = nil
+                completion()
+            }
+        }
+    }
+    
+    private func stopVolumeFading() {
+        fadeTimer?.invalidate()
+        fadeTimer = nil
+        volumeMultiplier = originalTTSVolume
     }
     
     // MARK: - Private Helpers
@@ -609,6 +679,9 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
             self?.playbackState = .playing
             self?.errorMessage = nil
             self?.audioFeedback.playFeedback(for: .playStarted)
+            
+            // Start volume fade in for smoother audio transition
+            self?.startVolumeFedeIn()
         }
     }
     
@@ -675,12 +748,119 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
         
         // Check if we've moved to a new section
         if currentSectionIndex != previousSectionIndex {
-            audioFeedback.playFeedback(for: .sectionChanged)
+            handleSectionTransition(from: previousSectionIndex, to: currentSectionIndex)
         }
         
         // Save progress periodically (every 10 seconds approximately)
         if currentPosition % 500 == 0 { // Rough estimate
             saveProgress()
         }
+    }
+    
+    // MARK: - Enhanced Section Transition Handling
+    private func handleSectionTransition(from fromIndex: Int, to toIndex: Int) {
+        guard fromIndex >= 0 && fromIndex < contentSections.count,
+              toIndex >= 0 && toIndex < contentSections.count else {
+            // Fallback to regular section change for edge cases
+            audioFeedback.playFeedback(for: .sectionChanged)
+            return
+        }
+        
+        let fromSection = contentSections[fromIndex]
+        let toSection = contentSections[toIndex]
+        
+        // Handle code block transitions with enhanced feedback
+        if toSection.typeEnum == .codeBlock && fromSection.typeEnum != .codeBlock {
+            // Entering code block
+            handleCodeBlockEntry(toSection)
+        } else if toSection.typeEnum != .codeBlock && fromSection.typeEnum == .codeBlock {
+            // Exiting code block
+            switch settingsManager.codeBlockNotificationStyle {
+            case .smartDetection, .tonesOnly, .both:
+                audioFeedback.playFeedback(for: .codeBlockEnd)
+            case .voiceOnly:
+                // No end tone for voice-only mode
+                break
+            }
+        } else {
+            // Regular section change
+            audioFeedback.playFeedback(for: .sectionChanged)
+        }
+    }
+    
+    private func handleCodeBlockEntry(_ section: ContentSection) {
+        let notificationStyle = settingsManager.codeBlockNotificationStyle
+        
+        switch notificationStyle {
+        case .smartDetection:
+            // Play tone synchronously, then provide language notification
+            playCodeBlockToneAndWait {
+                if self.settingsManager.isCodeBlockLanguageNotificationEnabled,
+                   let language = self.extractLanguageFromSection(section) {
+                    self.provideSubtleLanguageNotification(language)
+                }
+            }
+            
+        case .voiceOnly:
+            // Only provide language notification (no tones)
+            if settingsManager.isCodeBlockLanguageNotificationEnabled,
+               let language = extractLanguageFromSection(section) {
+                provideSubtleLanguageNotification(language)
+            }
+            
+        case .tonesOnly:
+            // Play tones synchronously (no voice)
+            playCodeBlockToneAndWait {}
+            
+        case .both:
+            // Play tones synchronously, then provide language notification
+            playCodeBlockToneAndWait {
+                if self.settingsManager.isCodeBlockLanguageNotificationEnabled,
+                   let language = self.extractLanguageFromSection(section) {
+                    self.provideSubtleLanguageNotification(language)
+                }
+            }
+        }
+    }
+    
+    private func playCodeBlockToneAndWait(completion: @escaping () -> Void) {
+        // Play tone and wait for actual completion before continuing
+        audioFeedback.playCodeBlockStartTone(completion: completion)
+    }
+    
+    private func extractLanguageFromSection(_ section: ContentSection) -> String? {
+        // Extract language from the original text (e.g., "[swift code]" -> "swift")
+        let spokenText = section.parsedContent?.plainText ?? ""
+        let startIndex = Int(section.startIndex)
+        let endIndex = Int(section.endIndex)
+        
+        guard startIndex < endIndex, startIndex >= 0, endIndex <= spokenText.count else {
+            return nil
+        }
+        
+        let sectionText = String(spokenText.dropFirst(startIndex).prefix(endIndex - startIndex))
+        
+        // Parse language from "[language code]" format
+        if sectionText.hasPrefix("[") && sectionText.contains(" code]") {
+            let languagePart = sectionText.dropFirst().dropLast(" code]".count)
+            return languagePart.trimmingCharacters(in: .whitespaces)
+        }
+        
+        return nil
+    }
+    
+    private func provideSubtleLanguageNotification(_ language: String) {
+        guard !language.isEmpty else { return }
+        
+        // Create a very brief, quiet utterance for the language
+        let utterance = AVSpeechUtterance(string: language)
+        utterance.volume = volumeMultiplier * 0.3  // Much quieter than main content
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.8  // Faster delivery
+        utterance.pitchMultiplier = 1.1  // Slightly higher pitch
+        utterance.voice = selectedVoice ?? getBestAvailableVoice()
+        utterance.preUtteranceDelay = 0.05
+        utterance.postUtteranceDelay = 0.05
+        
+        synthesizer.speak(utterance)
     }
 }

@@ -62,6 +62,10 @@ struct AudioFeedbackSettingsView: View {
                             audioFeedback.playFeedback(for: .error)
                         }
                         
+                        Button("Test Code Block Start") {
+                            audioFeedback.playFeedback(for: .codeBlockStart)
+                        }
+                        
                     } header: {
                         Text("Test Audio Feedback")
                     } footer: {

@@ -144,10 +144,14 @@ class MarkdownParser {
         
         // Extract language (if specified)
         let language = String(firstLine.dropFirst(3)).trimmingCharacters(in: .whitespaces)
-        let languageText = language.isEmpty ? "" : " in \(language)"
         
-        // Create TTS-friendly text
-        let spokenText = "Code block\(languageText) begins. [Code content omitted for brevity] Code block ends. "
+        // Create TTS-friendly text with shortened markers
+        let spokenText: String
+        if language.isEmpty {
+            spokenText = "[code] "
+        } else {
+            spokenText = "[\(language) code] "
+        }
         
         let section = ParsedSection(
             startIndex: textIndex,

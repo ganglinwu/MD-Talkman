@@ -17,6 +17,41 @@ class SettingsManager: ObservableObject {
         }
     }
     
+    // MARK: - Code Block Notification Settings
+    enum CodeBlockNotificationStyle: String, CaseIterable {
+        case smartDetection = "smart_detection"
+        case voiceOnly = "voice_only"
+        case tonesOnly = "tones_only"
+        case both = "both"
+        
+        var displayName: String {
+            switch self {
+            case .smartDetection: return "Smart Detection"
+            case .voiceOnly: return "Voice Only"
+            case .tonesOnly: return "Tones Only"
+            case .both: return "Voice + Tones"
+            }
+        }
+    }
+    
+    @Published var codeBlockNotificationStyle: CodeBlockNotificationStyle {
+        didSet {
+            UserDefaults.standard.set(codeBlockNotificationStyle.rawValue, forKey: "codeBlockNotificationStyle")
+        }
+    }
+    
+    @Published var isCodeBlockLanguageNotificationEnabled: Bool {
+        didSet {
+            UserDefaults.standard.set(isCodeBlockLanguageNotificationEnabled, forKey: "isCodeBlockLanguageNotificationEnabled")
+        }
+    }
+    
+    @Published var codeBlockToneVolume: Float {
+        didSet {
+            UserDefaults.standard.set(codeBlockToneVolume, forKey: "codeBlockToneVolume")
+        }
+    }
+    
     private init() {
         // Check if running in debug mode by default
         #if DEBUG
@@ -24,6 +59,14 @@ class SettingsManager: ObservableObject {
         #else
         self.isDeveloperModeEnabled = UserDefaults.standard.object(forKey: "isDeveloperModeEnabled") as? Bool ?? false
         #endif
+        
+        // Load code block notification settings
+        let notificationStyleRaw = UserDefaults.standard.string(forKey: "codeBlockNotificationStyle") ?? CodeBlockNotificationStyle.smartDetection.rawValue
+        self.codeBlockNotificationStyle = CodeBlockNotificationStyle(rawValue: notificationStyleRaw) ?? .smartDetection
+        
+        self.isCodeBlockLanguageNotificationEnabled = UserDefaults.standard.object(forKey: "isCodeBlockLanguageNotificationEnabled") as? Bool ?? true
+        
+        self.codeBlockToneVolume = UserDefaults.standard.object(forKey: "codeBlockToneVolume") as? Float ?? 0.7
     }
     
     func toggleDeveloperMode() {

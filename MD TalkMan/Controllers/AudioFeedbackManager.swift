@@ -20,6 +20,8 @@ enum AudioFeedbackType {
     case voiceChanged
     case error
     case buttonTap
+    case codeBlockStart
+    case codeBlockEnd
 }
 
 // MARK: - Audio Feedback Manager
@@ -31,11 +33,13 @@ class AudioFeedbackManager: ObservableObject {
     
     private var audioPlayer: AVAudioPlayer?
     private let hapticGenerator = UIImpactFeedbackGenerator(style: .medium)
+    private var customToneGenerator: CustomToneGenerator?
     
     // MARK: - Initialization
     init() {
         // Note: Audio session is managed by TTSManager to avoid conflicts
         hapticGenerator.prepare()
+        customToneGenerator = CustomToneGenerator(volume: volume)
     }
     
     // MARK: - Public Interface
@@ -44,49 +48,50 @@ class AudioFeedbackManager: ObservableObject {
         
         switch type {
         case .playStarted:
-            playSystemSound(.begin)
+            customToneGenerator?.playStartTone()
             playHaptic(.light)
             
         case .playPaused:
-            playSystemSound(.tweetSent)
+            customToneGenerator?.playPauseTone()
             playHaptic(.medium)
             
         case .playStopped:
-            playSystemSound(.tweetSent)
+            customToneGenerator?.playStopTone()
             playHaptic(.heavy)
             
         case .playCompleted:
-            playSystemSound(.mailSent)
+            customToneGenerator?.playCompletionTone()
             playHaptic(.success)
             
         case .sectionChanged:
-            playSystemSound(.navigationPop)
+            customToneGenerator?.playNavigationTone()
             playHaptic(.light)
             
         case .voiceChanged:
-            playSystemSound(.keyPressed)
+            customToneGenerator?.playSettingsChangeTone()
             playHaptic(.light)
             
         case .error:
-            playSystemSound(.alert)
+            customToneGenerator?.playErrorTone()
             playHaptic(.error)
             
         case .buttonTap:
-            playSystemSound(.keyPressed)
+            customToneGenerator?.playButtonTapTone()
             playHaptic(.selection)
+            
+        case .codeBlockStart:
+            customToneGenerator?.playCodeBlockStartTone()
+            playHaptic(.light)
+            
+        case .codeBlockEnd:
+            customToneGenerator?.playCodeBlockEndTone()
+            playHaptic(.light)
         }
     }
     
-    // MARK: - System Sound Playback
-    private func playSystemSound(_ sound: SystemSoundType) {
-        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
-            guard let self = self, self.isEnabled else { return }
-            
-            AudioServicesPlaySystemSoundWithCompletion(sound.rawValue) {
-                // Completion handler - could add additional logic here
-            }
-        }
-    }
+    // MARK: - System Sound Playback (Legacy - No longer used)
+    // System sounds have been replaced with custom Core Audio tones
+    // Keeping for potential fallback scenarios
     
     // MARK: - Haptic Feedback
     private func playHaptic(_ type: HapticType) {
@@ -143,6 +148,8 @@ class AudioFeedbackManager: ObservableObject {
     
     func setVolume(_ volume: Float) {
         self.volume = max(0.0, min(1.0, volume))
+        // Recreate tone generator with new volume
+        customToneGenerator = CustomToneGenerator(volume: self.volume)
     }
 }
 
@@ -186,5 +193,19 @@ extension AudioFeedbackManager {
     func applyOffPreset() {
         isEnabled = false
         // No audio feedback
+    }
+    
+    // MARK: - Legacy Code Block Methods (now using custom tones)
+    func playCodeBlockStartTone(completion: (() -> Void)? = nil) {
+        guard isEnabled else { 
+            completion?()
+            return
+        }
+        customToneGenerator?.playCodeBlockStartTone(completion: completion)
+    }
+    
+    func playCodeBlockEndTone() {
+        guard isEnabled else { return }
+        customToneGenerator?.playCodeBlockEndTone()
     }
 }
