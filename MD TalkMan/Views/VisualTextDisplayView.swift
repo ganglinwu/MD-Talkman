@@ -18,9 +18,11 @@ struct VisualTextDisplayView: View {
     @State private var searchText = ""
     @State private var searchResults: [NSRange] = []
     @State private var scrollPosition: Int = 0
+    @State private var highlightScrollID: String = "textContent"
     
     // MARK: - Environment
     @Environment(\.horizontalSizeClass) var horizontalSizeClass
+    @Environment(\.colorScheme) var colorScheme
     
     // MARK: - Body
     var body: some View {
@@ -42,9 +44,7 @@ struct VisualTextDisplayView: View {
         }
         .animation(.easeInOut(duration: 0.3), value: isVisible)
         .onChange(of: windowManager.currentSectionIndex) {
-            withAnimation(.easeInOut(duration: 0.8)) {
-                scrollToCurrentPosition()
-            }
+            // This will be handled by the scroll to highlight logic in textDisplayView
         }
     }
     
@@ -83,14 +83,20 @@ struct VisualTextDisplayView: View {
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 16) {
                     attributedTextView
-                        .id("textContent")
+                        .id(highlightScrollID)
                 }
                 .padding()
             }
             .onChange(of: windowManager.displayWindow) {
                 // Auto-scroll when content updates
-                withAnimation(.easeInOut(duration: 0.5)) {
-                    proxy.scrollTo("textContent", anchor: .top)
+                withAnimation(.easeInOut(duration: 0.8)) {
+                    proxy.scrollTo(highlightScrollID, anchor: .top)
+                }
+            }
+            .onChange(of: windowManager.currentHighlight) {
+                // Auto-scroll when highlight position changes
+                withAnimation(.easeInOut(duration: 0.8)) {
+                    proxy.scrollTo(highlightScrollID, anchor: .top)
                 }
             }
         }
@@ -121,7 +127,7 @@ struct VisualTextDisplayView: View {
             let endIndex = attributedString.index(startIndex, offsetByCharacters: highlightRange.length)
             
             if startIndex < attributedString.endIndex && endIndex <= attributedString.endIndex {
-                attributedString[startIndex..<endIndex].backgroundColor = .blue.opacity(0.15)
+                attributedString[startIndex..<endIndex].backgroundColor = currentHighlightColor
                 attributedString[startIndex..<endIndex].foregroundColor = .primary
             }
         }
@@ -135,7 +141,7 @@ struct VisualTextDisplayView: View {
                 let endIndex = attributedString.index(startIndex, offsetByCharacters: searchRange.length)
                 
                 if startIndex < attributedString.endIndex && endIndex <= attributedString.endIndex {
-                    attributedString[startIndex..<endIndex].backgroundColor = .yellow.opacity(0.3)
+                    attributedString[startIndex..<endIndex].backgroundColor = searchHighlightColor
                     attributedString[startIndex..<endIndex].foregroundColor = .primary
                 }
             }
@@ -144,20 +150,41 @@ struct VisualTextDisplayView: View {
         return attributedString
     }
     
-    /// Scroll to current reading position
-    private func scrollToCurrentPosition() {
-        // This method can be enhanced to scroll to specific highlight position
-        // For now, the auto-scroll in textDisplayView handles most cases
+    // MARK: - Color Scheme Support
+    
+    /// Current highlight color based on color scheme
+    private var currentHighlightColor: Color {
+        switch colorScheme {
+        case .dark:
+            return .blue.opacity(0.3)  // More visible in dark mode
+        case .light:
+            return .blue.opacity(0.15) // Subtle in light mode
+        @unknown default:
+            return .blue.opacity(0.15)
+        }
     }
     
+    /// Search highlight color based on color scheme
+    private var searchHighlightColor: Color {
+        switch colorScheme {
+        case .dark:
+            return .yellow.opacity(0.4)  // More visible in dark mode
+        case .light:
+            return .yellow.opacity(0.3)  // Standard in light mode
+        @unknown default:
+            return .yellow.opacity(0.3)
+        }
+    }
+    
+        
     // MARK: - Responsive Design
     
     /// Display height based on device size
     private var displayHeight: CGFloat {
         switch horizontalSizeClass {
-        case .compact: return 150  // iPhone portrait
-        case .regular: return 250  // iPad or iPhone landscape
-        default: return 200
+        case .compact: return 220  // iPhone portrait (increased from 150)
+        case .regular: return 320  // iPad or iPhone landscape (increased from 250)
+        default: return 280
         }
     }
     
