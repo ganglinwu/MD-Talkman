@@ -180,11 +180,7 @@ class CustomToneGenerator {
                         
                         player.scheduleBuffer(buffer, completionHandler: nil)
                         if !player.isPlaying {
-                            do {
-                                player.play()
-                            } catch {
-                                print("CustomToneGenerator: Player.play() failed: \(error)")
-                            }
+                            player.play()
                         }
                     }
                 }

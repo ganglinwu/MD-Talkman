@@ -37,6 +37,7 @@ class TTSManager: NSObject, ObservableObject {
     private let synthesizer = AVSpeechSynthesizer()
     private var audioSession: AVAudioSession?
     private let audioFeedback = AudioFeedbackManager()
+    private lazy var interjectionManager = InterjectionManager(audioFeedback: audioFeedback)
     
     // Visual text display integration
     @Published var textWindowManager = TextWindowManager()
@@ -54,6 +55,9 @@ class TTSManager: NSObject, ObservableObject {
     private var currentUtterance: AVSpeechUtterance?
     private var utteranceStartPosition: Int = 0  // Track where current utterance starts
     private var userRequestedStop: Bool = false  // Track if user explicitly stopped playback
+    
+    // Deferred interjections
+    private var pendingInterjection: InterjectionEvent?
     
     // Volume fading
     private var fadeTimer: Timer?
@@ -480,6 +484,8 @@ class TTSManager: NSObject, ObservableObject {
         return audioFeedback
     }
     
+    // Removed stopSpeakingImmediate - using natural TTS flow instead
+    
     private func setupUtteranceParameters(_ utterance: AVSpeechUtterance) {
         // Use selected voice or fallback to best available
         utterance.voice = selectedVoice ?? getBestAvailableVoice()
@@ -744,8 +750,20 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
                         self.audioFeedback.playFeedback(for: .playStopped)
                     }
                 } else {
-                    // Continue reading the next chunk automatically
-                    self.play()
+                    // Check for pending interjections before continuing
+                    if let interjection = self.pendingInterjection {
+                        self.pendingInterjection = nil
+                        print("🎯 TTSManager: Executing deferred interjection during natural pause")
+                        
+                        self.interjectionManager.handleInterjection(interjection, ttsManager: self) {
+                            print("✅ TTSManager: Interjection completed, continuing TTS")
+                            // Continue reading after interjection
+                            self.play()
+                        }
+                    } else {
+                        // Continue reading the next chunk automatically
+                        self.play()
+                    }
                 }
             }
         }
@@ -796,71 +814,35 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
         
         // Handle code block transitions with enhanced feedback
         if toSection.typeEnum == .codeBlock && fromSection.typeEnum != .codeBlock {
-            // Entering code block
-            handleCodeBlockEntry(toSection)
+            // Entering code block - use interjection system
+            let language = extractLanguageFromSection(toSection)
+            let event = InterjectionEvent.codeBlockStart(language: language, section: toSection)
+            handleInterjectionEvent(event)
+            
         } else if toSection.typeEnum != .codeBlock && fromSection.typeEnum == .codeBlock {
-            // Exiting code block
-            switch settingsManager.codeBlockNotificationStyle {
-            case .smartDetection, .tonesOnly, .both:
-                audioFeedback.playFeedback(for: .codeBlockEnd)
-                // Note: Extended post-utterance delay in setupUtteranceParameters handles timing
-            case .voiceOnly:
-                // No end tone for voice-only mode
-                break
-            }
+            // Exiting code block - use interjection system  
+            let event = InterjectionEvent.codeBlockEnd(section: fromSection)
+            handleInterjectionEvent(event)
         } else {
             // Regular section change (paragraph to paragraph) - no audio feedback needed
             // Only code blocks get special audio treatment for a cleaner experience
         }
     }
     
-    private func handleCodeBlockEntry(_ section: ContentSection) {
-        let notificationStyle = settingsManager.codeBlockNotificationStyle
+    // MARK: - Interjection Event Handling
+    private func handleInterjectionEvent(_ event: InterjectionEvent) {
+        print("🎯 TTSManager: Deferring interjection event for natural pause")
         
-        switch notificationStyle {
-        case .smartDetection:
-            // Play tone synchronously, then provide language notification
-            playCodeBlockToneAndWait {
-                if self.settingsManager.isCodeBlockLanguageNotificationEnabled,
-                   let language = self.extractLanguageFromSection(section) {
-                    self.provideSubtleLanguageNotification(language)
-                }
-            }
-            
-        case .voiceOnly:
-            // Only provide language notification (no tones)
-            if settingsManager.isCodeBlockLanguageNotificationEnabled,
-               let language = extractLanguageFromSection(section) {
-                provideSubtleLanguageNotification(language)
-            }
-            
-        case .tonesOnly:
-            // Play tones synchronously (no voice)
-            playCodeBlockToneAndWait {}
-            
-        case .both:
-            // Play tones synchronously, then provide language notification
-            playCodeBlockToneAndWait {
-                if self.settingsManager.isCodeBlockLanguageNotificationEnabled,
-                   let language = self.extractLanguageFromSection(section) {
-                    self.provideSubtleLanguageNotification(language)
-                }
-            }
-        }
+        // Store the interjection to be handled at the next natural pause (utterance completion)
+        pendingInterjection = event
     }
     
-    private func playCodeBlockToneAndWait(completion: @escaping () -> Void) {
-        // Play tone and wait for actual completion, plus extra breathing room
-        audioFeedback.playCodeBlockStartTone { [weak self] in
-            // Add extra pause after tone completes before language notification
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
-                completion()
-            }
-        }
-    }
+    // MARK: - Legacy handleCodeBlockEntry removed - now handled by InterjectionManager
+    
+    // MARK: - Legacy playCodeBlockToneAndWait removed - now handled by InterjectionManager
     
     
-    private func extractLanguageFromSection(_ section: ContentSection) -> String? {
+    internal func extractLanguageFromSection(_ section: ContentSection) -> String? {
         // Extract language from the original text (e.g., "[swift code]" -> "swift")
         let spokenText = section.parsedContent?.plainText ?? ""
         let startIndex = Int(section.startIndex)
@@ -881,18 +863,5 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
         return nil
     }
     
-    private func provideSubtleLanguageNotification(_ language: String) {
-        guard !language.isEmpty else { return }
-        
-        // Create a very brief, quiet utterance for the language
-        let utterance = AVSpeechUtterance(string: language)
-        utterance.volume = volumeMultiplier * 0.3  // Much quieter than main content
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.8  // Faster delivery
-        utterance.pitchMultiplier = 1.1  // Slightly higher pitch
-        utterance.voice = selectedVoice ?? getBestAvailableVoice()
-        utterance.preUtteranceDelay = 0.05
-        utterance.postUtteranceDelay = 0.05
-        
-        synthesizer.speak(utterance)
-    }
+    // MARK: - Legacy provideSubtleLanguageNotification removed - now handled by InterjectionManager
 }

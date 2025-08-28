@@ -165,15 +165,20 @@ struct VoiceSettingsView: View {
         // Stop any current playback
         ttsManager.stop()
         
-        // Create test utterance
+        // Create test utterance with proper voice setup
         let testUtterance = AVSpeechUtterance(string: testText)
-        testUtterance.voice = ttsManager.selectedVoice
-        testUtterance.rate = ttsManager.playbackSpeed
+        
+        // Use the same setup logic as TTSManager
+        testUtterance.voice = ttsManager.selectedVoice ?? AVSpeechSynthesisVoice(language: "en-US")
+        testUtterance.rate = AVSpeechUtteranceDefaultSpeechRate * ttsManager.playbackSpeed
         testUtterance.pitchMultiplier = ttsManager.pitchMultiplier
         testUtterance.volume = ttsManager.volumeMultiplier
+        testUtterance.preUtteranceDelay = 0.1
+        testUtterance.postUtteranceDelay = 0.1
         
-        // Speak test text
-        AVSpeechSynthesizer().speak(testUtterance)
+        // Create a temporary synthesizer for testing
+        let synthesizer = AVSpeechSynthesizer()
+        synthesizer.speak(testUtterance)
     }
     
     private func resetToDefaults() {
