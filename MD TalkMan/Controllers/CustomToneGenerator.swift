@@ -132,8 +132,21 @@ class CustomToneGenerator {
     // MARK: - Tone Generation
     func playTone(_ definition: ToneDefinition, completion: (() -> Void)? = nil) {
         guard let engine = audioEngine, let player = playerNode else {
+            print("CustomToneGenerator: Audio engine or player node is nil")
             completion?()
             return
+        }
+        
+        // Ensure engine is running before attempting to play
+        if !engine.isRunning {
+            do {
+                try engine.start()
+                print("CustomToneGenerator: Restarted audio engine")
+            } catch {
+                print("CustomToneGenerator: Failed to restart audio engine: \(error)")
+                completion?()
+                return
+            }
         }
         
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
@@ -159,9 +172,19 @@ class CustomToneGenerator {
                 if let buffer = buffer {
                     let delay = currentTime
                     DispatchQueue.main.asyncAfter(deadline: .now() + Double(delay)) {
+                        // Double-check engine is still running before playing
+                        guard let engine = self.audioEngine, engine.isRunning else {
+                            print("CustomToneGenerator: Engine stopped, skipping buffer playback")
+                            return
+                        }
+                        
                         player.scheduleBuffer(buffer, completionHandler: nil)
                         if !player.isPlaying {
-                            player.play()
+                            do {
+                                player.play()
+                            } catch {
+                                print("CustomToneGenerator: Player.play() failed: \(error)")
+                            }
                         }
                     }
                 }

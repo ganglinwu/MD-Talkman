@@ -70,6 +70,12 @@ class TTSManager: NSObject, ObservableObject {
         setupEnhancedVoices()
     }
     
+    deinit {
+        // Clean up volume fading timer
+        fadeTimer?.invalidate()
+        fadeTimer = nil
+    }
+    
     // MARK: - Audio Session Setup
     private func setupAudioSession() {
         audioSession = AVAudioSession.sharedInstance()
@@ -324,6 +330,10 @@ class TTSManager: NSObject, ObservableObject {
     
     func stop() {
         userRequestedStop = true
+        
+        // Stop any ongoing volume fading
+        stopVolumeFading()
+        
         synthesizer.stopSpeaking(at: .immediate)
         playbackState = .idle
         currentUtterance = nil
@@ -487,12 +497,28 @@ class TTSManager: NSObject, ObservableObject {
         // Extended pre-utterance delay for smoother transitions
         utterance.preUtteranceDelay = 0.3
         
-        // Extended post-utterance delay for breathing room 
-        utterance.postUtteranceDelay = 0.4
+        // Dynamic post-utterance delay based on content type
+        utterance.postUtteranceDelay = getPostUtteranceDelay()
+    }
+    
+    private func getPostUtteranceDelay() -> TimeInterval {
+        // Check if current section is a code block that might need extra pause time
+        guard currentSectionIndex >= 0 && currentSectionIndex < contentSections.count else {
+            return 0.4  // Default delay
+        }
+        
+        let currentSection = contentSections[currentSectionIndex]
+        
+        // If we're in a code block, add extra delay to allow end tones to play
+        if currentSection.typeEnum == .codeBlock {
+            return 0.8  // Longer delay for code blocks to accommodate end tones
+        }
+        
+        return 0.4  // Standard delay for regular content
     }
     
     // MARK: - Volume Fading
-    private func startVolumeFedeIn() {
+    private func startVolumeFadeIn() {
         originalTTSVolume = volumeMultiplier
         
         // Start from low volume
@@ -681,7 +707,7 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
             self?.audioFeedback.playFeedback(for: .playStarted)
             
             // Start volume fade in for smoother audio transition
-            self?.startVolumeFedeIn()
+            self?.startVolumeFadeIn()
         }
     }
     
@@ -761,8 +787,7 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
     private func handleSectionTransition(from fromIndex: Int, to toIndex: Int) {
         guard fromIndex >= 0 && fromIndex < contentSections.count,
               toIndex >= 0 && toIndex < contentSections.count else {
-            // Fallback to regular section change for edge cases
-            audioFeedback.playFeedback(for: .sectionChanged)
+            // Edge case - no audio feedback needed for basic navigation
             return
         }
         
@@ -778,13 +803,14 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
             switch settingsManager.codeBlockNotificationStyle {
             case .smartDetection, .tonesOnly, .both:
                 audioFeedback.playFeedback(for: .codeBlockEnd)
+                // Note: Extended post-utterance delay in setupUtteranceParameters handles timing
             case .voiceOnly:
                 // No end tone for voice-only mode
                 break
             }
         } else {
-            // Regular section change
-            audioFeedback.playFeedback(for: .sectionChanged)
+            // Regular section change (paragraph to paragraph) - no audio feedback needed
+            // Only code blocks get special audio treatment for a cleaner experience
         }
     }
     
@@ -824,9 +850,15 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
     }
     
     private func playCodeBlockToneAndWait(completion: @escaping () -> Void) {
-        // Play tone and wait for actual completion before continuing
-        audioFeedback.playCodeBlockStartTone(completion: completion)
+        // Play tone and wait for actual completion, plus extra breathing room
+        audioFeedback.playCodeBlockStartTone { [weak self] in
+            // Add extra pause after tone completes before language notification
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                completion()
+            }
+        }
     }
+    
     
     private func extractLanguageFromSection(_ section: ContentSection) -> String? {
         // Extract language from the original text (e.g., "[swift code]" -> "swift")
