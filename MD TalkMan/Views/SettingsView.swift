@@ -125,6 +125,44 @@ struct SettingsView: View {
                 }
                 
                 Section {
+                    Picker("Code Block Notifications", selection: Binding(
+                        get: { settingsManager.codeBlockNotificationStyle },
+                        set: { settingsManager.codeBlockNotificationStyle = $0 }
+                    )) {
+                        ForEach(SettingsManager.CodeBlockNotificationStyle.allCases, id: \.self) { style in
+                            Text(style.displayName).tag(style)
+                        }
+                    }
+                    
+                    Toggle("Language Announcements", isOn: Binding(
+                        get: { settingsManager.isCodeBlockLanguageNotificationEnabled },
+                        set: { settingsManager.isCodeBlockLanguageNotificationEnabled = $0 }
+                    ))
+                    
+                    HStack {
+                        Text("Tone Volume")
+                        Spacer()
+                        Slider(
+                            value: Binding(
+                                get: { settingsManager.codeBlockToneVolume },
+                                set: { settingsManager.codeBlockToneVolume = $0 }
+                            ),
+                            in: 0.0...1.0,
+                            step: 0.1
+                        )
+                        .frame(width: 100)
+                        Text(String(format: "%.0f%%", settingsManager.codeBlockToneVolume * 100))
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                            .frame(width: 35, alignment: .trailing)
+                    }
+                } header: {
+                    Text("Code Block Audio")
+                } footer: {
+                    Text("Configure audio notifications when entering and exiting code blocks during TTS playback.")
+                }
+                
+                Section {
                     LabeledContent("App Version", value: Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "Unknown")
                     LabeledContent("Build Number", value: Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "Unknown")
                     

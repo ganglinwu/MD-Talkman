@@ -22,7 +22,8 @@
       "Read(//Users/ganglinwu/.claude/**)",
       "Read(//Users/ganglinwu/.claude/**)",
       "Bash(awk:*)",
-      "Bash(sed:*)"
+      "Bash(sed:*)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": [],

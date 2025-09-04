@@ -42,6 +42,12 @@ class TTSManager: NSObject, ObservableObject {
     // Visual text display integration
     @Published var textWindowManager = TextWindowManager()
     
+    // MARK: - Queue-Based Architecture Integration
+    private let utteranceQueueManager = UtteranceQueueManager()
+    private var queuedUtterancesInSynthesizer: Set<ObjectIdentifier> = []
+    private var currentQueuedUtterance: QueuedUtterance?
+    private var isQueueMode: Bool = true  // Feature flag for testing
+    
     // Available enhanced voices
     private var enhancedVoices: [AVSpeechSynthesisVoice] = []
     
@@ -230,8 +236,20 @@ class TTSManager: NSObject, ObservableObject {
         
         // Load reading progress
         if let progress = markdownFile.readingProgress {
-            currentPosition = Int(progress.currentPosition)
+            let savedPosition = Int(progress.currentPosition)
             totalDuration = progress.totalDuration
+            
+            // Check if we're at the end of content (completed) - if so, restart from beginning
+            if let plainText = currentParsedContent?.plainText,
+               savedPosition >= plainText.count - 10 {  // Within 10 chars of end
+                print("🔄 File was completed, restarting from beginning")
+                currentPosition = 0
+                progress.currentPosition = 0
+                progress.isCompleted = false
+            } else {
+                currentPosition = savedPosition
+                print("💫 Resuming from saved position: \(currentPosition)")
+            }
             
             // Find current section based on position
             updateCurrentSectionIndex()
@@ -271,6 +289,7 @@ class TTSManager: NSObject, ObservableObject {
         errorMessage = nil
         userRequestedStop = false
         
+        // Handle pause resume
         if playbackState == .paused {
             playbackState = .loading
             
@@ -280,8 +299,12 @@ class TTSManager: NSObject, ObservableObject {
                 if self.synthesizer.continueSpeaking() {
                     self.playbackState = .playing
                 } else {
-                    // Fallback: restart from current position
-                    self.restartFromCurrentPosition()
+                    // Fallback: restart with queue-based approach
+                    if self.isQueueMode {
+                        self.startQueueBasedPlayback()
+                    } else {
+                        self.restartFromCurrentPosition()
+                    }
                 }
             }
             return
@@ -289,28 +312,125 @@ class TTSManager: NSObject, ObservableObject {
         
         playbackState = .preparing
         
-        // Get text from current position
-        let textToSpeak = getTextFromCurrentPosition()
+        // Use queue-based or legacy playback
+        if isQueueMode {
+            startQueueBasedPlayback()
+        } else {
+            startLegacyPlayback()
+        }
+    }
+    
+    // MARK: - Queue-Based Playback
+    private func startQueueBasedPlayback() {
+        print("🚀 Starting queue-based playback from position \(currentPosition)")
         
-        guard !textToSpeak.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            playbackState = .error("No content at position")
-            errorMessage = "No content available at current position"
+        // Pre-generate initial utterances for seamless playback
+        preloadUtteranceQueue(from: currentPosition)
+        
+        // Start playing first utterance
+        if let nextUtterance = utteranceQueueManager.fetchNextFromUtteranceQueue() {
+            playQueuedUtterance(nextUtterance)
+        } else {
+            playbackState = .error("No content to queue")
+            errorMessage = "Failed to generate initial utterances"
             audioFeedback.playFeedback(for: .error)
-            return
+        }
+    }
+    
+    private func preloadUtteranceQueue(from startPosition: Int) {
+        guard let parsedContent = currentParsedContent,
+              let plainText = parsedContent.plainText else { return }
+        
+        let maxPreloadUtterances = 3
+        var position = startPosition
+        
+        for i in 0..<maxPreloadUtterances {
+            print("🔍 Loop \(i): position=\(position), plainText.count=\(plainText.count)")
+            guard position < plainText.count else { 
+                print("🔍 Breaking: position >= plainText.count")
+                break 
+            }
+            
+            // Use existing section-boundary logic
+            print("🔍 Finding boundary from \(position)")
+            let chunkEndPosition = findNextInterjectionBoundary(from: position, maxSize: 50000)
+            print("🔍 Boundary found: \(chunkEndPosition)")
+            
+            guard position < chunkEndPosition else { 
+                print("🔍 Breaking: position >= chunkEndPosition (\(position) >= \(chunkEndPosition))")
+                break 
+            }
+            
+            print("🔍 Getting text chunk \(position)-\(chunkEndPosition)")
+            let textChunk = getTextChunk(from: plainText, start: position, end: chunkEndPosition)
+            print("🔍 Got text chunk: \(textChunk.count) characters")
+            
+            guard !textChunk.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { 
+                print("🔍 Breaking: empty text chunk")
+                break 
+            }
+            
+            // Create queued utterance
+            print("🔍 Creating AVSpeechUtterance")
+            let utterance = AVSpeechUtterance(string: textChunk)
+            print("🔍 Setting up utterance parameters")
+            setupUtteranceParameters(utterance)
+            
+            print("🔍 Finding section index")
+            let sectionIndex = findSectionIndexForPosition(position)
+            print("🔍 Generating metadata")
+            let metadata = generateMetadataForPosition(position)
+            
+            print("🔍 Creating QueuedUtterance")
+            let queuedUtterance = QueuedUtterance(
+                utterance: utterance,
+                startPosition: position,
+                endPosition: chunkEndPosition,
+                sectionIndex: sectionIndex,
+                isInterjection: false,
+                priority: .normal,
+                metadata: metadata,
+                performance: nil
+            )
+            
+            print("🔍 Appending to queue")
+            utteranceQueueManager.appendUtterance(queuedUtterance)
+            position = chunkEndPosition
+            
+            print("📝 Pre-loaded utterance \(i+1): \(queuedUtterance.startPosition)-\(queuedUtterance.endPosition)")
         }
         
-        // Create utterance with enhanced settings
-        currentUtterance = AVSpeechUtterance(string: textToSpeak)
-        setupUtteranceParameters(currentUtterance!)
+        print("✅ Pre-loaded \(utteranceQueueManager.queueCount) utterances for seamless playback")
+    }
+    
+    private func playQueuedUtterance(_ queuedUtterance: QueuedUtterance) {
+        currentQueuedUtterance = queuedUtterance
+        currentPosition = queuedUtterance.startPosition
+        updateCurrentSectionIndex()
         
-        // Remember where this utterance starts in the document
-        utteranceStartPosition = currentPosition
+        let utteranceId = ObjectIdentifier(queuedUtterance.utterance)
+        queuedUtterancesInSynthesizer.insert(utteranceId)
         
-        // Add longer pause to allow tones to complete and create breathing room
+        print("🎵 Playing queued utterance: \(queuedUtterance.startPosition)-\(queuedUtterance.endPosition)")
+        
+        // Add delay to allow audio session and interjections to settle (same as legacy)
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self = self, let utterance = self.currentUtterance else { return }
-            self.synthesizer.speak(utterance)
-            // Note: State will be updated by delegate methods
+            guard let self = self else { return }
+            self.synthesizer.speak(queuedUtterance.utterance)
+        }
+        
+        // Pre-load next utterances if queue is getting low
+        if utteranceQueueManager.queueCount <= 1 {
+            preloadNextUtterances()
+        }
+    }
+    
+    private func preloadNextUtterances() {
+        guard let lastUtterance = utteranceQueueManager.getLastUtterance() else { return }
+        
+        let nextPosition = lastUtterance.endPosition
+        DispatchQueue.global(qos: .utility).async { [weak self] in
+            self?.preloadUtteranceQueue(from: nextPosition)
         }
     }
     
@@ -324,6 +444,11 @@ class TTSManager: NSObject, ObservableObject {
             
             if self.synthesizer.pauseSpeaking(at: .immediate) {
                 self.playbackState = .paused
+                
+                // Save progress in queue mode
+                if self.isQueueMode {
+                    self.saveProgress()
+                }
             } else {
                 // Fallback: stop and save position
                 self.synthesizer.stopSpeaking(at: .immediate)
@@ -333,10 +458,19 @@ class TTSManager: NSObject, ObservableObject {
     }
     
     func stop() {
+        print("🛑 TTSManager: stop() called - setting userRequestedStop = true")
+        print("🛑 Call stack: \(Thread.callStackSymbols.prefix(5))")
         userRequestedStop = true
         
         // Stop any ongoing volume fading
         stopVolumeFading()
+        
+        // Clear queue state in queue mode
+        if isQueueMode {
+            queuedUtterancesInSynthesizer.removeAll()
+            currentQueuedUtterance = nil
+            // Note: We preserve utteranceQueueManager queues for potential resume
+        }
         
         synthesizer.stopSpeaking(at: .immediate)
         playbackState = .idle
@@ -345,10 +479,58 @@ class TTSManager: NSObject, ObservableObject {
     }
     
     func rewind(seconds: TimeInterval = 5.0) {
-        // Calculate new position (approximate)
+        if isQueueMode && utteranceQueueManager.hasRecycledContent {
+            // Try instant replay from RecycleQueue first
+            if let replayUtterances = utteranceQueueManager.findReplayUtterances(seconds: seconds) {
+                print("⚡ Instant rewind using RecycleQueue: \(replayUtterances.count) utterances")
+                
+                // Clear current queue
+                utteranceQueueManager.clearMainQueue()
+                queuedUtterancesInSynthesizer.removeAll()
+                
+                // Stop current playback
+                synthesizer.stopSpeaking(at: .immediate)
+                
+                // Create fresh utterances (can't reuse spoken ones)
+                for replayUtterance in replayUtterances {
+                    let freshUtterance = AVSpeechUtterance(string: replayUtterance.utterance.speechString)
+                    setupUtteranceParameters(freshUtterance)
+                    
+                    let freshQueuedUtterance = QueuedUtterance(
+                        utterance: freshUtterance,
+                        startPosition: replayUtterance.startPosition,
+                        endPosition: replayUtterance.endPosition,
+                        sectionIndex: replayUtterance.sectionIndex,
+                        isInterjection: replayUtterance.isInterjection,
+                        priority: replayUtterance.priority,
+                        metadata: replayUtterance.metadata,
+                        performance: nil
+                    )
+                    
+                    utteranceQueueManager.appendUtterance(freshQueuedUtterance)
+                }
+                
+                // Update position and restart
+                if let firstUtterance = replayUtterances.first {
+                    currentPosition = firstUtterance.startPosition
+                    updateCurrentSectionIndex()
+                }
+                
+                // Resume playback if it was playing
+                if playbackState == .playing {
+                    play()
+                }
+                
+                audioFeedback.playFeedback(for: .buttonTap)  // Use existing feedback type
+                return
+            }
+        }
+        
+        // Fallback to regeneration approach
+        print("🔄 Using regeneration approach for rewind")
         let estimatedWordsPerMinute: Double = 150
         let wordsPerSecond = estimatedWordsPerMinute / 60
-        let charactersPerSecond = wordsPerSecond * 5 // Average word length
+        let charactersPerSecond = wordsPerSecond * 5
         
         let charactersToRewind = Int(seconds * charactersPerSecond)
         currentPosition = max(0, currentPosition - charactersToRewind)
@@ -416,6 +598,19 @@ class TTSManager: NSObject, ObservableObject {
     }
     
     // MARK: - Voice & Audio Control
+    
+    /// Get the shared synthesizer for interjection use
+    /// - Returns: The synthesizer instance used by this TTS manager
+    func getSynthesizer() -> AVSpeechSynthesizer? {
+        return synthesizer
+    }
+    
+    /// Get the interjection manager for testing
+    /// - Returns: The interjection manager instance
+    func getInterjectionManager() -> InterjectionManager {
+        return interjectionManager
+    }
+    
     func setPlaybackSpeed(_ speed: Float) {
         let newSpeed = max(0.5, min(2.0, speed))
         
@@ -517,10 +712,10 @@ class TTSManager: NSObject, ObservableObject {
         
         // If we're in a code block, add extra delay to allow end tones to play
         if currentSection.typeEnum == .codeBlock {
-            return 0.8  // Longer delay for code blocks to accommodate end tones
+            return 1.2  // Longer delay for code blocks to accommodate end tones
         }
         
-        return 0.4  // Standard delay for regular content
+        return 0.6  // Standard delay for regular content
     }
     
     // MARK: - Volume Fading
@@ -618,10 +813,10 @@ class TTSManager: NSObject, ObservableObject {
         // Check if we're at or past the end
         guard startPos < totalLength else { return "" }
         
-        // For memory efficiency, read in chunks instead of entire remaining text
-        // Use larger chunks for better TTS flow, but limit memory usage
+        // Use section-boundary aware chunking for optimal interjection timing
+        // This allows interjections to play between natural content segments
         let maxChunkSize = 50000  // ~50KB chunks - good balance of performance vs memory
-        let endPos = min(startPos + maxChunkSize, totalLength)
+        let endPos = findNextInterjectionBoundary(from: startPos, maxSize: maxChunkSize)
         
         guard startPos < endPos else { return "" }
         
@@ -638,6 +833,58 @@ class TTSManager: NSObject, ObservableObject {
         }
         
         return textChunk
+    }
+    
+    /// Find the optimal position to end a TTS chunk, prioritizing section boundaries for interjection insertion
+    /// - Parameters:
+    ///   - startPos: Current position in text
+    ///   - maxSize: Maximum chunk size (fallback)
+    /// - Returns: Position where chunk should end
+    private func findNextInterjectionBoundary(from startPos: Int, maxSize: Int) -> Int {
+        guard let parsedContent = currentParsedContent,
+              let plainText = parsedContent.plainText else {
+            return startPos + maxSize
+        }
+        
+        let totalLength = plainText.count
+        let maxEndPos = min(startPos + maxSize, totalLength)
+        
+        print("🔍 TTSManager: Finding interjection boundary from \(startPos) to max \(maxEndPos)")
+        
+        // Find sections that start within this potential chunk range
+        let sectionsInRange = contentSections.filter { section in
+            Int(section.startIndex) > startPos && Int(section.startIndex) <= maxEndPos
+        }.sorted { $0.startIndex < $1.startIndex }
+        
+        print("🔍 TTSManager: Found \(sectionsInRange.count) sections in range")
+        
+        // Priority 1: Stop before code blocks to allow interjections
+        if let codeBlockSection = sectionsInRange.first(where: { $0.typeEnum == .codeBlock }) {
+            let boundaryPos = Int(codeBlockSection.startIndex)
+            print("🎯 TTSManager: Found code block boundary at position \(boundaryPos) - chunking will stop here")
+            return boundaryPos
+        }
+        
+        // Priority 2: Stop at header boundaries for clean transitions
+        if let headerSection = sectionsInRange.first(where: { $0.typeEnum == .header }) {
+            let boundaryPos = Int(headerSection.startIndex)
+            print("📝 TTSManager: Found header boundary at position \(boundaryPos)")
+            return boundaryPos
+        }
+        
+        // Priority 3: Use paragraph boundaries (but not too small chunks)
+        let minChunkSize = 1000  // Don't create tiny chunks
+        if let paragraphSection = sectionsInRange.first(where: { 
+            $0.typeEnum == .paragraph && Int($0.startIndex) - startPos >= minChunkSize 
+        }) {
+            let boundaryPos = Int(paragraphSection.startIndex)
+            print("📄 TTSManager: Found paragraph boundary at position \(boundaryPos)")
+            return boundaryPos
+        }
+        
+        // Priority 4: Fallback to original max size approach
+        print("⬅️ TTSManager: No suitable section boundary found, using max size \(maxEndPos)")
+        return maxEndPos
     }
     
     private func hasMoreContentToRead() -> Bool {
@@ -721,51 +968,116 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             
+            print("🗣️ TTSManager: Utterance finished - speechString length: \(utterance.speechString.count)")
+            print("🔍 TTSManager: User requested stop: \(self.userRequestedStop)")
+            print("🔍 TTSManager: Synthesizer is speaking: \(self.synthesizer.isSpeaking)")
+            print("🔍 TTSManager: Queue mode: \(self.isQueueMode)")
+            
             if utterance.speechString.isEmpty {
                 self.playbackState = .error("No content to read")
                 self.errorMessage = "No content available for playback"
                 self.audioFeedback.playFeedback(for: .error)
-            } else {
-                // Check if user explicitly stopped playback
-                if self.userRequestedStop {
-                    self.playbackState = .idle
-                    self.audioFeedback.playFeedback(for: .playStopped)
-                    return
-                }
-                
-                // Update position to end of current utterance
-                self.currentPosition = self.utteranceStartPosition + utterance.speechString.count
-                
-                // Check if we've reached the actual end of content
-                if !self.hasMoreContentToRead() || self.isAtEndOfContent() {
-                    // Truly finished - mark as completed
-                    self.playbackState = .idle
-                    
-                    if let markdownFile = self.currentMarkdownFile,
-                       let progress = markdownFile.readingProgress {
-                        progress.isCompleted = true
-                        self.saveProgress()
-                        self.audioFeedback.playFeedback(for: .playCompleted)
-                    } else {
-                        self.audioFeedback.playFeedback(for: .playStopped)
-                    }
-                } else {
-                    // Check for pending interjections before continuing
-                    if let interjection = self.pendingInterjection {
-                        self.pendingInterjection = nil
-                        print("🎯 TTSManager: Executing deferred interjection during natural pause")
-                        
-                        self.interjectionManager.handleInterjection(interjection, ttsManager: self) {
-                            print("✅ TTSManager: Interjection completed, continuing TTS")
-                            // Continue reading after interjection
-                            self.play()
-                        }
-                    } else {
-                        // Continue reading the next chunk automatically
-                        self.play()
-                    }
-                }
+                return
             }
+            
+            // Check if user explicitly stopped playback
+            if self.userRequestedStop && !self.synthesizer.isSpeaking {
+                print("📱 TTSManager: User requested stop and synthesizer stopped - setting to idle")
+                self.playbackState = .idle
+                self.audioFeedback.playFeedback(for: .playStopped)
+                return
+            }
+            
+            if self.isQueueMode {
+                self.handleQueueBasedUtteranceCompletion(utterance)
+            } else {
+                self.handleLegacyUtteranceCompletion(utterance)
+            }
+        }
+    }
+    
+    private func handleQueueBasedUtteranceCompletion(_ utterance: AVSpeechUtterance) {
+        let utteranceId = ObjectIdentifier(utterance)
+        queuedUtterancesInSynthesizer.remove(utteranceId)
+        
+        // Move completed utterance to recycle queue for instant replay
+        if let completedUtterance = currentQueuedUtterance,
+           ObjectIdentifier(completedUtterance.utterance) == utteranceId {
+            
+            // Calculate performance metrics
+            let performance = UtterancePerformance(
+                actualDuration: 0, // Could track actual timing here
+                charactersPerSecond: Double(utterance.speechString.count) / 5.0, // Rough estimate
+                completedAt: Date()
+            )
+            
+            utteranceQueueManager.moveToRecycleQueue(completedUtterance, performance: performance)
+            
+            // Update position ONLY for main content, NOT for interjections
+            if !completedUtterance.isInterjection {
+                currentPosition = completedUtterance.endPosition
+                updateCurrentSectionIndex()
+                
+                // Update text window manager for main content only
+                textWindowManager.updateWindow(for: currentPosition)
+                
+                print("📝 Position updated to: \(currentPosition) (section \(currentSectionIndex))")
+            } else {
+                print("🎤 Interjection completed - position unchanged: \(currentPosition)")
+            }
+            
+            saveProgress()
+        }
+        
+        // Check for completion
+        if utteranceQueueManager.queueCount == 0 && queuedUtterancesInSynthesizer.isEmpty {
+            if !hasMoreContentToRead() || isAtEndOfContent() {
+                print("✅ TTSManager: Queue completed - marking as finished")
+                playbackState = .idle
+                
+                if let markdownFile = currentMarkdownFile,
+                   let progress = markdownFile.readingProgress {
+                    progress.isCompleted = true
+                    saveProgress()
+                    audioFeedback.playFeedback(for: .playCompleted)
+                } else {
+                    audioFeedback.playFeedback(for: .playStopped)
+                }
+                return
+            } else {
+                // Pre-load more content
+                preloadNextUtterances()
+            }
+        }
+        
+        // Play next utterance from queue
+        if let nextUtterance = utteranceQueueManager.fetchNextFromUtteranceQueue() {
+            playQueuedUtterance(nextUtterance)
+        }
+    }
+    
+    private func handleLegacyUtteranceCompletion(_ utterance: AVSpeechUtterance) {
+        // Update position to end of current utterance
+        currentPosition = utteranceStartPosition + utterance.speechString.count
+        
+        // Check if we've reached the actual end of content
+        if !hasMoreContentToRead() || isAtEndOfContent() {
+            // Truly finished - mark as completed
+            print("✅ TTSManager: Reached end of content - marking as completed")
+            playbackState = .idle
+            
+            if let markdownFile = currentMarkdownFile,
+               let progress = markdownFile.readingProgress {
+                progress.isCompleted = true
+                saveProgress()
+                audioFeedback.playFeedback(for: .playCompleted)
+            } else {
+                audioFeedback.playFeedback(for: .playStopped)
+            }
+        } else {
+            print("🔄 TTSManager: Continuing TTS to next section")
+            // Continue reading the next chunk automatically
+            play()
         }
     }
     
@@ -784,15 +1096,48 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, willSpeakRangeOfSpeechString characterRange: NSRange, utterance: AVSpeechUtterance) {
-        // Calculate absolute position in document
-        // characterRange.location is relative to current utterance, not entire document
-        let previousSectionIndex = currentSectionIndex
-        currentPosition = utteranceStartPosition + characterRange.location  // ✅ Fixed: Set absolute position
-        updateCurrentSectionIndex()
-        
-        // Check if we've moved to a new section
-        if currentSectionIndex != previousSectionIndex {
-            handleSectionTransition(from: previousSectionIndex, to: currentSectionIndex)
+        if isQueueMode {
+            // Queue mode: Use queue-based position tracking
+            // Position is managed by handleQueueBasedUtteranceCompletion()
+            if let currentQueued = currentQueuedUtterance {
+                let utterancePosition = currentQueued.startPosition + characterRange.location
+                
+                // Only update text window for main content, not interjections
+                if !currentQueued.isInterjection {
+                    textWindowManager.updateWindow(for: utterancePosition)
+                }
+                
+                // Handle section transitions for interjections
+                let previousSectionIndex = currentSectionIndex
+                if utterancePosition != currentPosition {
+                    // Temporarily update for section detection
+                    let tempPosition = currentPosition
+                    currentPosition = utterancePosition
+                    updateCurrentSectionIndex()
+                    
+                    if currentSectionIndex != previousSectionIndex {
+                        handleSectionTransition(from: previousSectionIndex, to: currentSectionIndex)
+                    }
+                    
+                    // Restore position if this was an interjection
+                    if currentQueued.isInterjection {
+                        currentPosition = tempPosition
+                    }
+                }
+            }
+        } else {
+            // Legacy mode: Use original single-utterance logic
+            let previousSectionIndex = currentSectionIndex
+            currentPosition = utteranceStartPosition + characterRange.location
+            updateCurrentSectionIndex()
+            
+            // Update text window in legacy mode
+            textWindowManager.updateWindow(for: currentPosition)
+            
+            // Check if we've moved to a new section
+            if currentSectionIndex != previousSectionIndex {
+                handleSectionTransition(from: previousSectionIndex, to: currentSectionIndex)
+            }
         }
         
         // Save progress periodically (every 10 seconds approximately)
@@ -812,15 +1157,32 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
         let fromSection = contentSections[fromIndex]
         let toSection = contentSections[toIndex]
         
-        // Handle code block transitions with enhanced feedback
+        // Handle code block transitions with immediate interruption
         if toSection.typeEnum == .codeBlock && fromSection.typeEnum != .codeBlock {
-            // Entering code block - use interjection system
+            // Entering code block - interrupt TTS immediately for perfect timing
+            print("🎯 TTSManager: Entering code block - triggering immediate interjection")
             let language = extractLanguageFromSection(toSection)
+            
+            // Pause TTS immediately for perfect timing
+            synthesizer.pauseSpeaking(at: .word)
+            print("⏸️ TTSManager: TTS paused for code block interjection")
+            
             let event = InterjectionEvent.codeBlockStart(language: language, section: toSection)
-            handleInterjectionEvent(event)
+            interjectionManager.handleInterjection(event, ttsManager: self) {
+                print("✅ TTSManager: Code block interjection completed - resuming TTS")
+                
+                // Resume TTS after interjection
+                DispatchQueue.main.async { [weak self] in
+                    guard let self = self else { return }
+                    if self.synthesizer.isPaused {
+                        self.synthesizer.continueSpeaking()
+                        print("▶️ TTSManager: TTS resumed after code block interjection")
+                    }
+                }
+            }
             
         } else if toSection.typeEnum != .codeBlock && fromSection.typeEnum == .codeBlock {
-            // Exiting code block - use interjection system  
+            // Exiting code block - use normal audio feedback (no interruption needed)
             let event = InterjectionEvent.codeBlockEnd(section: fromSection)
             handleInterjectionEvent(event)
         } else {
@@ -829,13 +1191,20 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
         }
     }
     
-    // MARK: - Interjection Event Handling
+    // MARK: - Section-Based Interjection Handling (replaces interference detection)
+    
+    // MARK: - Interjection Event Handling (Legacy - kept for compatibility)
     private func handleInterjectionEvent(_ event: InterjectionEvent) {
-        print("🎯 TTSManager: Deferring interjection event for natural pause")
+        print("🎯 TTSManager: Executing interjection event immediately")
         
-        // Store the interjection to be handled at the next natural pause (utterance completion)
-        pendingInterjection = event
+        // Execute interjection immediately during section transitions
+        // This avoids the issue of multiple interjections overwriting each other
+        interjectionManager.handleInterjection(event, ttsManager: self) {
+            print("✅ TTSManager: Interjection completed during section transition")
+            // Interjection completed, TTS will continue naturally
+        }
     }
+    
     
     // MARK: - Legacy handleCodeBlockEntry removed - now handled by InterjectionManager
     
@@ -848,19 +1217,140 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
         let startIndex = Int(section.startIndex)
         let endIndex = Int(section.endIndex)
         
-        guard startIndex < endIndex, startIndex >= 0, endIndex <= spokenText.count else {
+        print("🔍 extractLanguage: startIndex=\(startIndex), endIndex=\(endIndex), textLength=\(spokenText.count)")
+        
+        // Enhanced safety checks
+        guard startIndex >= 0,
+              endIndex >= startIndex,
+              endIndex <= spokenText.count,
+              startIndex < spokenText.count,
+              (endIndex - startIndex) < 1000 else {  // Reasonable section size limit
+            print("⚠️ extractLanguage: Invalid bounds, returning nil")
             return nil
         }
         
-        let sectionText = String(spokenText.dropFirst(startIndex).prefix(endIndex - startIndex))
+        // Safe string extraction using String.Index
+        let textStartIndex = spokenText.index(spokenText.startIndex, offsetBy: startIndex)
+        let textEndIndex = spokenText.index(spokenText.startIndex, offsetBy: endIndex)
+        
+        let sectionText = String(spokenText[textStartIndex..<textEndIndex])
+        print("🔍 extractLanguage: sectionText=\"\(sectionText.prefix(50))...\"")
         
         // Parse language from "[language code]" format
         if sectionText.hasPrefix("[") && sectionText.contains(" code]") {
             let languagePart = sectionText.dropFirst().dropLast(" code]".count)
-            return languagePart.trimmingCharacters(in: .whitespaces)
+            let language = String(languagePart).trimmingCharacters(in: .whitespaces)
+            print("🔍 extractLanguage: found language=\"\(language)\"")
+            return language
         }
         
+        print("🔍 extractLanguage: no language found")
         return nil
+    }
+    
+    // MARK: - Queue-Based Helper Methods
+    
+    private func getTextChunk(from plainText: String, start: Int, end: Int) -> String {
+        guard start < end, start >= 0, end <= plainText.count else { return "" }
+        
+        let startIndex = plainText.index(plainText.startIndex, offsetBy: start)
+        let endIndex = plainText.index(plainText.startIndex, offsetBy: end)
+        
+        return String(plainText[startIndex..<endIndex])
+    }
+    
+    private func findSectionIndexForPosition(_ position: Int) -> Int {
+        for (index, section) in contentSections.enumerated() {
+            if position >= section.startIndex && position < section.endIndex {
+                return index
+            }
+        }
+        return currentSectionIndex // Fallback to current
+    }
+    
+    private func generateMetadataForPosition(_ position: Int) -> UtteranceMetadata? {
+        let sectionIndex = findSectionIndexForPosition(position)
+        guard sectionIndex >= 0 && sectionIndex < contentSections.count else { return nil }
+        
+        let section = contentSections[sectionIndex]
+        return UtteranceMetadata(
+            contentType: section.typeEnum,
+            language: extractLanguageFromSection(section),
+            isSkippable: section.isSkippable,
+            interjectionEvents: []
+        )
+    }
+    
+    // Legacy single-utterance playback (fallback)
+    private func startLegacyPlayback() {
+        let textToSpeak = getTextFromCurrentPosition()
+        print("🎙️ TTSManager: Retrieved chunk of \(textToSpeak.count) characters from position \(currentPosition)")
+        
+        guard !textToSpeak.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            playbackState = .error("No content at position")
+            errorMessage = "No content available at current position"
+            audioFeedback.playFeedback(for: .error)
+            return
+        }
+        
+        // Create utterance with enhanced settings
+        currentUtterance = AVSpeechUtterance(string: textToSpeak)
+        setupUtteranceParameters(currentUtterance!)
+        
+        // Remember where this utterance starts in the document
+        utteranceStartPosition = currentPosition
+        
+        // Add longer pause to allow tones to complete and create breathing room
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) { [weak self] in
+            guard let self = self, let utterance = self.currentUtterance else { return }
+            self.synthesizer.speak(utterance)
+        }
+    }
+    
+    // MARK: - Context Recovery Features
+    func replayLastSection() {
+        guard isQueueMode else {
+            print("⚠️ Replay features only available in queue mode")
+            return
+        }
+        
+        if let lastMainUtterance = utteranceQueueManager.getLastMainContentUtterance() {
+            replayFromPosition(lastMainUtterance.startPosition, reason: "last section replay")
+        } else {
+            audioFeedback.playFeedback(for: .error)
+        }
+    }
+    
+    func replayForContext() {
+        guard isQueueMode else { return }
+        
+        let contextUtterances = utteranceQueueManager.getContextReplayUtterances()
+        guard !contextUtterances.isEmpty else {
+            audioFeedback.playFeedback(for: .error)
+            return
+        }
+        
+        if let firstContextUtterance = contextUtterances.first {
+            replayFromPosition(firstContextUtterance.startPosition, reason: "context recovery")
+        }
+    }
+    
+    private func replayFromPosition(_ position: Int, reason: String) {
+        print("🔄 Replaying from position \(position) - \(reason)")
+        
+        // Clear current queue
+        utteranceQueueManager.clearMainQueue()
+        queuedUtterancesInSynthesizer.removeAll()
+        
+        // Stop current playback
+        synthesizer.stopSpeaking(at: .immediate)
+        
+        // Set new position
+        currentPosition = position
+        updateCurrentSectionIndex()
+        
+        // Restart playback
+        play()
     }
     
     // MARK: - Legacy provideSubtleLanguageNotification removed - now handled by InterjectionManager

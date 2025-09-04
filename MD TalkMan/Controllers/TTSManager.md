@@ -14,6 +14,8 @@ The TTSManager is the core audio controller for MD TalkMan, providing sophistica
 - **Voice Customization**: Premium voice selection and parameter tuning
 - **Section Navigation**: Smart section jumping and skippable content
 - **Progress Persistence**: Save and restore reading position
+- **Interjection Coordination**: Manage context-aware voice announcements
+- **Section-Boundary Chunking**: Intelligent text chunking for interjection timing
 
 ### Design Patterns Used
 
@@ -302,5 +304,119 @@ if let sectionInfo = ttsManager.getCurrentSectionInfo() {
 - **Comprehensive Testing**: Mockable delegate patterns
 - **Error Handling**: Graceful degradation for missing voices
 - **Performance**: Efficient memory and battery usage
+
+## Interjection System Architecture
+
+### Overview
+The TTSManager coordinates with InterjectionManager to provide context-aware voice announcements during TTS playback, enabling features like code block language announcements in contrasting female voices.
+
+### Section-Based Interjection Flow
+
+**1. Section Transition Detection**
+```swift
+func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, 
+                      willSpeakRangeOfSpeechString characterRange: NSRange, 
+                      utterance: AVSpeechUtterance) {
+    // Update position tracking
+    currentPosition = utteranceStartPosition + characterRange.location
+    updateCurrentSectionIndex()
+    
+    // Detect section transitions
+    if currentSectionIndex != previousSectionIndex {
+        handleSectionTransition(from: previousSectionIndex, to: currentSectionIndex)
+    }
+}
+```
+
+**2. Code Block Interjection Logic**
+```swift
+private func handleSectionTransition(from fromIndex: Int, to toIndex: Int) {
+    if toSection.typeEnum == .codeBlock && fromSection.typeEnum != .codeBlock {
+        // Entering code block - interrupt TTS for immediate interjection
+        let language = extractLanguageFromSection(toSection)
+        synthesizer.pauseSpeaking(at: .word)  // Clean pause at word boundary
+        
+        let event = InterjectionEvent.codeBlockStart(language: language, section: toSection)
+        interjectionManager.handleInterjection(event, ttsManager: self) {
+            // Resume TTS after interjection completes
+            DispatchQueue.main.async { [weak self] in
+                self?.synthesizer.continueSpeaking()
+            }
+        }
+    }
+}
+```
+
+**3. Language Extraction**
+```swift
+private func extractLanguageFromSection(_ section: ContentSection) -> String? {
+    // Extract language from code block content like "[swift code]"
+    let sectionText = getTextForSection(section)
+    if let match = sectionText.range(of: #"\[(\w+) code\]"#, options: .regularExpression) {
+        return String(sectionText[match])
+    }
+    return nil
+}
+```
+
+### Intelligent Text Chunking
+
+**Section-Boundary Aware Chunking**
+```swift
+private func getTextFromCurrentPosition() -> String {
+    // Use section-boundary aware chunking instead of fixed-size chunks
+    let maxChunkSize = 50000
+    let endPos = findNextInterjectionBoundary(from: startPos, maxSize: maxChunkSize)
+    return String(plainText[startIndex..<endIndex])
+}
+
+private func findNextInterjectionBoundary(from startPos: Int, maxSize: Int) -> Int {
+    // Priority 1: Stop before code blocks for interjection insertion
+    if let codeBlockSection = sectionsInRange.first(where: { $0.typeEnum == .codeBlock }) {
+        return Int(codeBlockSection.startIndex)
+    }
+    // Priority 2-4: Headers, paragraphs, fallback to maxSize
+}
+```
+
+### InterjectionManager Integration
+
+**Shared Synthesizer Architecture**
+- TTSManager provides synthesizer access via `getSynthesizer()`
+- InterjectionManager uses shared synthesizer to avoid conflicts
+- Coordinated pause/resume prevents audio artifacts
+
+**Event-Driven Communication**
+```swift
+enum InterjectionEvent {
+    case codeBlockStart(language: String?, section: ContentSection)
+    case codeBlockEnd(section: ContentSection)
+    
+    // Future extensions for Claude AI integration
+    case claudeInsight(text: String, context: String)
+    case userQuestion(query: String)
+}
+```
+
+## Current Implementation Status
+
+### ✅ Working Components
+- Section transition detection via `willSpeakRangeOfSpeechString`
+- Code block language extraction from parsed content
+- TTS pause/resume coordination
+- Female voice selection and synthesis
+- Smart boundary-based text chunking
+
+### 🔧 Areas Needing Investigation
+- **Timing Issues**: Interjections may still queue instead of interrupting
+- **Voice Selection**: Female voice system may not be functioning correctly
+- **Resume Logic**: TTS may not auto-resume after interjection completion
+- **Multiple Events**: Duplicate interjection events may be firing
+
+### Debugging Approach
+1. **Trace Section Transitions**: Log when transitions are detected
+2. **Monitor TTS State**: Track pause/resume cycle completion
+3. **Verify Voice Selection**: Confirm female voice is being used
+4. **Check Event Handling**: Ensure single interjection per transition
 
 This architecture transforms complex AVFoundation speech synthesis into a simple, powerful tool for hands-free markdown consumption while maintaining clean code principles and excellent user experience.

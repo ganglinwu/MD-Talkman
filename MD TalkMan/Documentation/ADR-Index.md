@@ -18,6 +18,7 @@ Each ADR follows this structure:
 | [ADR-001](./ADR-001-Int32-For-Position-Tracking.md) | Use Int32 for Position Tracking | ✅ Accepted | 2025-08-15 |
 | [ADR-002](./ADR-002-Visual-Text-Display.md) | Visual Text Display with Real-time Highlighting | ✅ Accepted | 2025-08-16 |
 | [ADR-003](./ADR-003-Webhook-Architecture.md) | Go-based Webhook Server with APNs Integration | ✅ Accepted | 2025-08-24 |
+| [ADR-004](./ADR-004-Interjection-Event-System.md) | Interjection Event System for Natural TTS Flow Management | ✅ Accepted | 2025-08-28 |
 
 ## ADR Statuses
 
@@ -29,12 +30,14 @@ Each ADR follows this structure:
 
 ## Future ADRs to Consider
 
-- **TTS Position Strategy**: Time-based vs Character-based positioning
-- **Memory Management**: Chunking vs Full-load vs Streaming
-- **Audio Session Management**: Background playback strategy
-- **GitHub Integration**: Repository sync architecture
+- **TTS Position Strategy**: Time-based vs Character-based positioning ✅ *Covered by ADR-001*
+- **Memory Management**: Chunking vs Full-load vs Streaming  
+- **Audio Session Management**: Background playback strategy ✅ *Partially covered by ADR-004*
+- **GitHub Integration**: Repository sync architecture ✅ *Covered by ADR-003*
 - **Claude API Integration**: Context management and conversation history
 - **CarPlay Integration**: UI and interaction patterns
+- **Concurrent GitHub Sync**: Parallel file processing architecture (Phase 4)
+- **Voice Command Integration**: Speech-to-text and Claude AI coordination
 
 ## Guidelines
 

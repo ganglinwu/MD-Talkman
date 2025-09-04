@@ -372,6 +372,54 @@ class TTSManager: ObservableObject {
 - Handle lists: "bullet point 1, bullet point 2"
 - Section detection for smart skipping
 
+### Interjection Event System
+A sophisticated audio management system that handles contextual announcements during TTS playback without interrupting the natural speech flow.
+
+**Architecture Pattern: Deferred Execution**
+```swift
+// Interjection events wait for natural TTS pauses (utterance completion)
+enum InterjectionEvent {
+    case codeBlockStart(language: String?, section: ContentSection)
+    case codeBlockEnd(section: ContentSection)
+    
+    // Phase 4 Extensions (for Claude AI integration):
+    case claudeInsight(text: String, context: String)
+    case userQuestion(query: String)
+    case contextualHelp(topic: String)
+}
+```
+
+**InterjectionManager Features:**
+- **Natural Flow Coordination**: Events are deferred until natural TTS pauses (between utterances)
+- **Voice Contrast**: Uses female voice (Samantha/Ava) for code block announcements vs. main content voice
+- **Configurable Notifications**: Supports smart detection, tones only, voice only, or both
+- **Event-Driven Architecture**: Extensible system ready for Phase 4 Claude AI integration
+- **Audio Session Safety**: Minimal audio conflicts through careful timing coordination
+
+**Technical Benefits:**
+- **Seamless Experience**: No jarring TTS interruptions or audio artifacts  
+- **Intelligent Timing**: Uses `AVSpeechSynthesizerDelegate.didFinish` for perfect coordination
+- **Memory Safe**: Temporary synthesizer instances with proper delegate lifecycle management
+- **Extensible Design**: Ready for Claude insights, contextual help, and user interactions
+
+**Code Block Enhancement Flow:**
+```swift
+// 1. Code block detected during TTS section transition
+// 2. InterjectionEvent.codeBlockStart created with language info
+// 3. Event deferred to pendingInterjection property  
+// 4. Natural TTS pause occurs (utterance completes)
+// 5. InterjectionManager executes event:
+//    - Language announcement: "swift code" (female voice)
+//    - End-of-interjection tone (subtle completion signal)
+// 6. TTS resumes naturally with next content chunk
+```
+
+**Phase 4 Readiness:**
+The system is architected to handle future Claude AI interjections:
+- **Claude Insights**: AI-generated explanations injected at relevant sections
+- **User Questions**: Voice queries processed and answered mid-reading
+- **Contextual Help**: Smart assistance based on current content type
+
 ## SwiftUI View Hierarchy
 
 ### Main App Structure
@@ -484,6 +532,7 @@ ContentView
 - Automatic progress tracking and bookmark support
 - Real-time position tracking with Core Data persistence
 - Haptic feedback for accessibility and hands-free operation
+- **Interjection Event System**: Natural pause-based audio announcements without TTS interruption
 
 **Visual Text Display System**
 - TextWindowManager: Intelligent text windowing with 2-3 paragraph context
@@ -529,6 +578,16 @@ ContentView
 - UI status integration with parsing progress indicators and file readiness states
 - Production-ready error handling and fallback strategies for robust operation
 
+**Interjection Event System (Phase 4 Foundation)**
+- InterjectionManager: Event-driven audio announcement system with natural TTS flow coordination
+- Deferred execution pattern: Events wait for natural utterance completion (no forced interruptions)
+- Voice contrast system: Female voice announcements distinct from main content narration
+- Multi-modal notifications: Configurable tones, voice announcements, or combined approaches
+- Memory-safe temporary synthesizer instances with proper delegate lifecycle management
+- Extensible architecture ready for Claude AI insights, user questions, and contextual help
+- Code block language detection and announcement: "swift code", "javascript code", etc.
+- End-of-interjection tone system for clear audio boundaries and professional UX
+
 **Comprehensive Testing**
 - 21 unit tests for markdown parsing accuracy
 - 15 TTS manager tests with mock objects
@@ -557,6 +616,9 @@ Markdown: - List item → TTS: "• List item."
 - **Character-based position tracking** for precise TTS-to-text synchronization
 - **AttributedString highlighting** with dual-layer support (position + search)
 - **Responsive SwiftUI design** adapting to device sizes and orientations
+- **Event-driven interjection system** with natural TTS pause coordination
+- **Deferred execution pattern** for seamless audio flow without interruptions
+- **Multi-voice architecture** with female contrast voices for announcements
 - Developer mode with granular data management controls
 - Comprehensive error handling and edge case management
 - Audio session management optimized for automotive use

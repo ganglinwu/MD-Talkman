@@ -7,6 +7,7 @@
 
 import Foundation
 import AVFoundation
+import UIKit
 
 // MARK: - Interjection Event Types
 enum InterjectionEvent {
@@ -41,7 +42,15 @@ class InterjectionManager: ObservableObject {
                           ttsManager: TTSManager,
                           completion: @escaping () -> Void) {
         
-        print("🎯 InterjectionManager: Handling interjection event")
+        // Ensure all interjection handling runs on main thread
+        guard Thread.isMainThread else {
+            DispatchQueue.main.async { [weak self] in
+                self?.handleInterjection(event, ttsManager: ttsManager, completion: completion)
+            }
+            return
+        }
+        
+        print("🎯 InterjectionManager: Handling interjection event on main thread")
         
         // Use natural TTS pauses instead of forcing stops
         print("🎯 InterjectionManager: Using natural pause approach - no TTS interruption")
@@ -52,14 +61,14 @@ class InterjectionManager: ObservableObject {
         // Handle the specific interjection type
         switch event {
         case .codeBlockStart(let language, let section):
-            executeCodeBlockStart(language: language, section: section) {
+            executeCodeBlockStart(language: language, section: section, ttsManager: ttsManager) {
                 // Natural approach - no TTS manipulation needed
                 print("🎯 InterjectionManager: Code block start complete - TTS continues naturally")
                 completion()
             }
             
         case .codeBlockEnd(let section):
-            executeCodeBlockEnd(section: section) {
+            executeCodeBlockEnd(section: section, ttsManager: ttsManager) {
                 // Natural approach - no TTS manipulation needed
                 print("🎯 InterjectionManager: Code block end complete - TTS continues naturally")
                 completion()
@@ -78,7 +87,9 @@ class InterjectionManager: ObservableObject {
     }
     
     // MARK: - Code Block Interjections
-    private func executeCodeBlockStart(language: String?, section: ContentSection, completion: @escaping () -> Void) {
+    private func executeCodeBlockStart(language: String?, section: ContentSection, ttsManager: TTSManager, completion: @escaping () -> Void) {
+        assert(Thread.isMainThread, "Code block start must run on main thread")
+        
         print("🎯 InterjectionManager: Executing code block start - language: \(language ?? "nil")")
         let notificationStyle = settingsManager.codeBlockNotificationStyle
         print("🎯 InterjectionManager: Notification style: \(notificationStyle)")
@@ -88,7 +99,7 @@ class InterjectionManager: ObservableObject {
             // During natural pause - just provide language notification
             if settingsManager.isCodeBlockLanguageNotificationEnabled,
                let language = language {
-                provideLanguageNotification(language) {
+                provideLanguageNotification(language, ttsManager: ttsManager) {
                     completion()
                 }
             } else {
@@ -104,7 +115,7 @@ class InterjectionManager: ObservableObject {
             playCodeBlockToneWithPause(.codeBlockStart) { [weak self] in
                 if self?.settingsManager.isCodeBlockLanguageNotificationEnabled == true,
                    let language = language {
-                    self?.provideLanguageNotification(language) {
+                    self?.provideLanguageNotification(language, ttsManager: ttsManager) {
                         completion()
                     }
                 } else {
@@ -116,14 +127,16 @@ class InterjectionManager: ObservableObject {
             // Language notification only (no tone)
             if settingsManager.isCodeBlockLanguageNotificationEnabled,
                let language = language {
-                provideLanguageNotification(language, completion: completion)
+                provideLanguageNotification(language, ttsManager: ttsManager, completion: completion)
             } else {
                 completion()
             }
         }
     }
     
-    private func executeCodeBlockEnd(section: ContentSection, completion: @escaping () -> Void) {
+    private func executeCodeBlockEnd(section: ContentSection, ttsManager: TTSManager, completion: @escaping () -> Void) {
+        assert(Thread.isMainThread, "Code block end must run on main thread")
+        
         let notificationStyle = settingsManager.codeBlockNotificationStyle
         
         switch notificationStyle {
@@ -138,116 +151,134 @@ class InterjectionManager: ObservableObject {
     
     // MARK: - Audio Coordination  
     private func playCodeBlockToneWithPause(_ feedbackType: AudioFeedbackType, completion: @escaping () -> Void) {
-        print("🎵 InterjectionManager: Simplified approach - minimal audio load")
+        print("🎵 InterjectionManager: Playing code block tone - \(feedbackType)")
         
-        // Just add a pause instead of complex tone generation to avoid audio overload
-        let pauseDuration: TimeInterval = 0.5
+        // Play the actual tone using AudioFeedbackManager
+        audioFeedback.playFeedback(for: feedbackType)
+        
+        // Add a small pause after the tone to let it complete
+        let pauseDuration: TimeInterval = 0.9  // Allow time for tone to finish
         
         DispatchQueue.main.asyncAfter(deadline: .now() + pauseDuration) {
-            print("🎵 InterjectionManager: Pause completed")
+            print("🎵 InterjectionManager: Code block tone completed")
             completion()
         }
     }
     
-    private func provideLanguageNotification(_ language: String, completion: @escaping () -> Void) {
+    private func provideLanguageNotification(_ language: String, ttsManager: TTSManager, completion: @escaping () -> Void) {
+        assert(Thread.isMainThread, "Language notification must run on main thread")
+        
         print("🗣️ InterjectionManager: Providing language notification: '\(language) code'")
         
-        // Create a temporary synthesizer for the interjection
-        let synthesizer = AVSpeechSynthesizer()
-        let utterance = AVSpeechUtterance(string: "\(language) code")
+        // Use the shared TTSManager synthesizer instead of creating a new one
+        guard let sharedSynthesizer = ttsManager.getSynthesizer() else {
+            print("❌ InterjectionManager: No shared synthesizer available - completing without voice")
+            completion()
+            return
+        }
         
-        // Use female voice for code block announcements (distinctive contrast)
-        let voice = getFemaleVoice()
+        // Get the selected interjection voice
+        let interjectionVoice = getInterjectionVoice()
+        
+        // Check for Siri voice compatibility
+        if let voice = interjectionVoice, voice.identifier.contains("siri") {
+            print("⚠️ InterjectionManager: Skipping Siri voice (\(voice.name)) - not compatible with AVSpeechSynthesizer")
+            // Find a non-Siri fallback
+            let fallbackVoice = findNonSiriVoice() ?? AVSpeechSynthesisVoice(language: "en-US")
+            performInterjectionSpeech("\(language) code", voice: fallbackVoice, synthesizer: sharedSynthesizer, completion: completion)
+        } else {
+            // Use the selected voice or system default
+            let voiceToUse = interjectionVoice ?? AVSpeechSynthesisVoice(language: "en-US")
+            performInterjectionSpeech("\(language) code", voice: voiceToUse, synthesizer: sharedSynthesizer, completion: completion)
+        }
+    }
+    
+    private func performInterjectionSpeech(_ text: String, voice: AVSpeechSynthesisVoice?, synthesizer: AVSpeechSynthesizer, completion: @escaping () -> Void) {
+        assert(Thread.isMainThread, "Interjection speech must run on main thread")
+        
+        print("🗣️ InterjectionManager: Speaking '\(text)' with voice: \(voice?.name ?? "system default")")
+        print("🗣️ InterjectionManager: Using shared synthesizer for interjection")
+        
+        // Create interjection utterance with standard settings
+        let utterance = AVSpeechUtterance(string: text)
         utterance.voice = voice
-        print("🗣️ InterjectionManager: Using voice: \(voice?.name ?? "default")")
+        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.0  // Normal speed for clarity
+        utterance.volume = 0.85  // Clear volume level
+        utterance.preUtteranceDelay = 0.1  // Brief delay
+        utterance.postUtteranceDelay = 0.2  // Standard pause
         
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.1
-        utterance.volume = 0.8
-        utterance.preUtteranceDelay = 0.2
-        utterance.postUtteranceDelay = 0.4  // Pause before end-of-interjection tone
-        
-        print("🗣️ InterjectionManager: Starting language notification synthesis...")
-        
-        // Synthesizer delegate to handle completion
-        let delegate = InterjectionSynthesizerDelegate { [weak self] in
-            // After language announcement, play end-of-interjection tone
+        // Create a strong delegate to handle completion
+        let delegate = InterjectionSpeechDelegate { [weak self] in
+            print("✅ InterjectionManager: Interjection speech completed")
             self?.playEndOfInterjectionTone {
+                print("🔄 InterjectionManager: Interjection complete")
                 completion()
             }
         }
+        
+        // Store the delegate to keep it alive during speech
         synthesizer.delegate = delegate
+        objc_setAssociatedObject(synthesizer, "interjectionDelegate", delegate, .OBJC_ASSOCIATION_RETAIN)
         
-        // Keep delegate alive during synthesis
-        objc_setAssociatedObject(synthesizer, "delegate", delegate, .OBJC_ASSOCIATION_RETAIN)
-        
+        // Speak the interjection using shared synthesizer
         synthesizer.speak(utterance)
+        print("🗣️ InterjectionManager: Interjection utterance added to synthesizer queue")
+    }
+    
+    // MARK: - Testing Interface
+    /// Test method for VoiceSettingsView to verify interjection voice functionality
+    /// - Parameters:
+    ///   - language: The language code to announce (e.g. "swift", "javascript")
+    ///   - ttsManager: Reference to TTS manager for shared synthesizer access
+    ///   - completion: Called when the test is complete
+    func testLanguageNotification(_ language: String, ttsManager: TTSManager, completion: @escaping () -> Void) {
+        assert(Thread.isMainThread, "Test language notification must run on main thread")
+        
+        print("🧪 InterjectionManager: Testing language notification for: '\(language) code'")
+        provideLanguageNotification(language, ttsManager: ttsManager, completion: completion)
     }
     
     // MARK: - Voice Selection
-    private func getFemaleVoice() -> AVSpeechSynthesisVoice? {
-        print("🔍 InterjectionManager: Searching for female voice...")
+    private func getInterjectionVoice() -> AVSpeechSynthesisVoice? {
+        print("🔍 InterjectionManager: Getting interjection voice from settings...")
         
-        // First check basic voices that are always available
-        let basicFemaleVoices = [
-            AVSpeechSynthesisVoice(identifier: "com.apple.ttsbundle.Samantha-compact"),
-            AVSpeechSynthesisVoice(identifier: "com.apple.ttsbundle.siri_female_en-US_compact"),
-            AVSpeechSynthesisVoice(language: "en-US") // System default
-        ]
+        // Try to get user-selected voice first
+        if let selectedVoice = settingsManager.getSelectedInterjectionVoice() {
+            print("✅ InterjectionManager: Using user-selected voice: \(selectedVoice.name)")
+            return selectedVoice
+        }
         
-        for voice in basicFemaleVoices {
-            if let voice = voice {
-                print("✅ InterjectionManager: Using basic voice: \(voice.name)")
+        // Fallback to default female voice
+        let defaultVoice = settingsManager.getDefaultInterjectionVoice()
+        print("✅ InterjectionManager: Using default interjection voice: \(defaultVoice?.name ?? "system default")")
+        return defaultVoice
+    }
+    
+    private func findNonSiriVoice() -> AVSpeechSynthesisVoice? {
+        let femaleVoices = settingsManager.getAvailableFemaleVoices()
+        
+        // Find first non-Siri voice
+        for voice in femaleVoices {
+            if !voice.identifier.contains("siri") && !voice.identifier.contains("ttsbundle") {
+                print("🔍 InterjectionManager: Found non-Siri voice: \(voice.name)")
                 return voice
             }
         }
         
-        // Fallback: Find any female voice by name
-        let allVoices = AVSpeechSynthesisVoice.speechVoices()
-        print("🔍 InterjectionManager: Checking \(allVoices.count) available voices...")
-        
-        for voice in allVoices {
-            if voice.language.hasPrefix("en") {
-                let voiceName = voice.name.lowercased()
-                print("   - Voice: \(voice.name) (\(voice.language))")
-                
-                // Look for explicitly female names
-                if voiceName.contains("samantha") || voiceName.contains("ava") || 
-                   voiceName.contains("victoria") || voiceName.contains("allison") ||
-                   voiceName.contains("susan") || voiceName.contains("zoe") {
-                    print("✅ InterjectionManager: Found female voice by name: \(voice.name)")
-                    return voice
-                }
-            }
-        }
-        
-        // Force use a different voice than main TTS for contrast
-        print("⚠️ InterjectionManager: No specific female voice found, filtering out male names...")
-        let maleNames = ["alex", "daniel", "tom", "fred", "aaron", "arthur", "albert"]
-        
-        for voice in allVoices {
-            if voice.language.hasPrefix("en") {
-                let voiceName = voice.name.lowercased()
-                let isMale = maleNames.contains { voiceName.contains($0) }
-                
-                if !isMale {
-                    print("✅ InterjectionManager: Using non-male voice: \(voice.name)")
-                    return voice
-                }
-            }
-        }
-        
-        // Last resort: return default voice
-        print("⚠️ InterjectionManager: Using default voice as last resort")
-        return AVSpeechSynthesisVoice(language: "en-US")
+        print("⚠️ InterjectionManager: No non-Siri voices found")
+        return nil
     }
     
     // MARK: - End of Interjection Tone
     private func playEndOfInterjectionTone(completion: @escaping () -> Void) {
-        // Play a subtle "completion" tone - descending interval to signal end
-        audioFeedback.playFeedback(for: .buttonTap)  // Subtle, brief tone
+        print("🎵 InterjectionManager: Playing end-of-interjection tone")
         
-        // Add small pause after tone
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+        // Play a subtle "completion" tone to signal end of interjection
+        audioFeedback.playFeedback(for: .buttonTap)  // Subtle, brief completion tone
+        
+        // Add small pause after tone to ensure it completes
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+            print("🎵 InterjectionManager: End-of-interjection tone completed")
             completion()
         }
     }
@@ -272,19 +303,31 @@ class InterjectionManager: ObservableObject {
     }
 }
 
-// MARK: - Interjection Synthesizer Delegate
-private class InterjectionSynthesizerDelegate: NSObject, AVSpeechSynthesizerDelegate {
+
+// MARK: - Interjection Speech Delegate
+private class InterjectionSpeechDelegate: NSObject, AVSpeechSynthesizerDelegate {
     private let completion: () -> Void
     
     init(completion: @escaping () -> Void) {
         self.completion = completion
+        super.init()
+    }
+    
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didStart utterance: AVSpeechUtterance) {
+        print("🗣️ InterjectionSpeechDelegate: Interjection speech started")
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didFinish utterance: AVSpeechUtterance) {
+        print("🗣️ InterjectionSpeechDelegate: Interjection speech finished")
         completion()
     }
     
     func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, didCancel utterance: AVSpeechUtterance) {
+        print("🗣️ InterjectionSpeechDelegate: Interjection speech cancelled")
         completion()
+    }
+    
+    func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer, willSpeakRangeOfSpeechString range: NSRange, utterance: AVSpeechUtterance) {
+        print("🗣️ InterjectionSpeechDelegate: Speaking interjection range")
     }
 }

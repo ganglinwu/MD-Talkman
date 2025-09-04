@@ -10,8 +10,11 @@ import AVFoundation
 
 struct VoiceSettingsView: View {
     @ObservedObject var ttsManager: TTSManager
+    @ObservedObject private var settingsManager = SettingsManager.shared
     @Environment(\.dismiss) private var dismiss
     @State private var testText = "Hello! This is a sample of how this voice sounds when reading your markdown content."
+    @State private var interjectionTestText = "swift code"
+    @State private var selectedInterjectionVoice: AVSpeechSynthesisVoice?
     
     var body: some View {
         NavigationView {
@@ -46,9 +49,49 @@ struct VoiceSettingsView: View {
                     .disabled(ttsManager.isVoiceLoading)
                     
                 } header: {
-                    Text("Voice Selection")
+                    Text("Main Reading Voice")
                 } footer: {
                     Text("Enhanced and Premium voices provide more natural speech quality.")
+                }
+                
+                Section {
+                    Picker("Interjection Voice", selection: Binding(
+                        get: { 
+                            selectedInterjectionVoice ?? settingsManager.getAvailableFemaleVoices().first ?? AVSpeechSynthesisVoice(language: "en-US")!
+                        },
+                        set: { newVoice in
+                            print("🔄 VoiceSettingsView: Voice picker changed to: \(newVoice.name)")
+                            selectedInterjectionVoice = newVoice
+                            // Save to settings without triggering @Published update immediately
+                            DispatchQueue.main.async {
+                                settingsManager.setInterjectionVoice(newVoice)
+                            }
+                        }
+                    )) {
+                        ForEach(settingsManager.getAvailableFemaleVoices(), id: \.identifier) { voice in
+                            VStack(alignment: .leading) {
+                                Text(voice.name)
+                                    .font(.headline)
+                                Text("\(voice.language) • \(voice.gender.displayName) • \(voice.quality.displayName)")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                            }
+                            .tag(voice)
+                        }
+                    }
+                    .pickerStyle(.navigationLink)
+                    
+                    TextField("Interjection Test Text", text: $interjectionTestText)
+                    
+                    Button("Test Interjection Voice") {
+                        testInterjectionVoice()
+                    }
+                    .foregroundColor(.blue)
+                    
+                } header: {
+                    Text("Interjection Voice")
+                } footer: {
+                    Text("Voice used for code block announcements and other interjections. Should contrast with main reading voice.")
                 }
                 
                 Section {
@@ -145,6 +188,11 @@ struct VoiceSettingsView: View {
             }
             .navigationTitle("Voice Settings")
             .navigationBarTitleDisplayMode(.inline)
+            .onAppear {
+                // Initialize selectedInterjectionVoice from settings
+                selectedInterjectionVoice = settingsManager.getSelectedInterjectionVoice() ?? settingsManager.getAvailableFemaleVoices().first
+                print("🚀 VoiceSettingsView: Initialized with interjection voice: \(selectedInterjectionVoice?.name ?? "none")")
+            }
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Reset") {
@@ -162,23 +210,49 @@ struct VoiceSettingsView: View {
     }
     
     private func testCurrentVoice() {
-        // Stop any current playback
-        ttsManager.stop()
+        print("🔊 VoiceSettingsView: Testing main TTS voice using shared synthesizer...")
         
-        // Create test utterance with proper voice setup
+        // Pause main TTS if it's playing
+        let wasPlaying = ttsManager.playbackState == .playing
+        if wasPlaying {
+            ttsManager.pause()
+        }
+        
+        // Get the shared synthesizer from TTSManager
+        guard let sharedSynthesizer = ttsManager.getSynthesizer() else {
+            print("❌ VoiceSettingsView: No shared synthesizer available")
+            return
+        }
+        
+        // Create test utterance with current settings
         let testUtterance = AVSpeechUtterance(string: testText)
-        
-        // Use the same setup logic as TTSManager
         testUtterance.voice = ttsManager.selectedVoice ?? AVSpeechSynthesisVoice(language: "en-US")
         testUtterance.rate = AVSpeechUtteranceDefaultSpeechRate * ttsManager.playbackSpeed
         testUtterance.pitchMultiplier = ttsManager.pitchMultiplier
         testUtterance.volume = ttsManager.volumeMultiplier
-        testUtterance.preUtteranceDelay = 0.1
-        testUtterance.postUtteranceDelay = 0.1
         
-        // Create a temporary synthesizer for testing
-        let synthesizer = AVSpeechSynthesizer()
-        synthesizer.speak(testUtterance)
+        print("🔊 VoiceSettingsView: Testing voice: \(testUtterance.voice?.name ?? "default")")
+        
+        // Use the shared synthesizer
+        sharedSynthesizer.speak(testUtterance)
+        
+        print("✅ VoiceSettingsView: Test utterance queued with shared synthesizer")
+    }
+    
+    private func testInterjectionVoice() {
+        print("🔊 VoiceSettingsView: Testing interjection voice using production speech synthesis...")
+        
+        // Get the InterjectionManager from TTSManager
+        let interjectionManager = ttsManager.getInterjectionManager()
+        
+        // Test direct language notification (this is what the production system uses)
+        print("🔊 VoiceSettingsView: Testing language notification for: '\(interjectionTestText)'")
+        
+        // Use the production method directly - this will use the shared synthesizer
+        // and proper voice selection just like real interjections
+        interjectionManager.testLanguageNotification(interjectionTestText, ttsManager: ttsManager) {
+            print("✅ VoiceSettingsView: Interjection voice test completed successfully")
+        }
     }
     
     private func resetToDefaults() {
@@ -222,6 +296,7 @@ extension AVSpeechSynthesisVoiceGender {
         }
     }
 }
+
 
 #Preview {
     VoiceSettingsView(ttsManager: TTSManager())

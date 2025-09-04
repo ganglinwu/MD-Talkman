@@ -145,7 +145,8 @@ class MarkdownParser {
         // Extract language (if specified)
         let language = String(firstLine.dropFirst(3)).trimmingCharacters(in: .whitespaces)
         
-        // Create TTS-friendly text with shortened markers
+        // Create clean TTS text without interference markers
+        // We'll use section boundary detection instead of text markers
         let spokenText: String
         if language.isEmpty {
             spokenText = "[code] "

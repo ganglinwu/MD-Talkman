@@ -7,6 +7,7 @@
 
 import Foundation
 import CoreData
+import AVFoundation
 
 class SettingsManager: ObservableObject {
     static let shared = SettingsManager()
@@ -52,6 +53,13 @@ class SettingsManager: ObservableObject {
         }
     }
     
+    @Published var selectedInterjectionVoiceIdentifier: String? {
+        didSet {
+            print("🔄 SettingsManager: selectedInterjectionVoiceIdentifier changed from \(oldValue ?? "nil") to \(selectedInterjectionVoiceIdentifier ?? "nil")")
+            UserDefaults.standard.set(selectedInterjectionVoiceIdentifier, forKey: "selectedInterjectionVoiceIdentifier")
+        }
+    }
+    
     private init() {
         // Check if running in debug mode by default
         #if DEBUG
@@ -67,6 +75,8 @@ class SettingsManager: ObservableObject {
         self.isCodeBlockLanguageNotificationEnabled = UserDefaults.standard.object(forKey: "isCodeBlockLanguageNotificationEnabled") as? Bool ?? true
         
         self.codeBlockToneVolume = UserDefaults.standard.object(forKey: "codeBlockToneVolume") as? Float ?? 0.7
+        
+        self.selectedInterjectionVoiceIdentifier = UserDefaults.standard.string(forKey: "selectedInterjectionVoiceIdentifier")
     }
     
     func toggleDeveloperMode() {
@@ -224,5 +234,89 @@ class SettingsManager: ObservableObject {
         
         MockData.createSampleData(in: context)
         print("✅ Sample data loaded successfully!")
+    }
+    
+    // MARK: - Interjection Voice Management
+    func getAvailableFemaleVoices() -> [AVSpeechSynthesisVoice] {
+        let allVoices = AVSpeechSynthesisVoice.speechVoices()
+        print("🔍 SettingsManager: Checking \(allVoices.count) total voices for female voices")
+        
+        // Filter for English voices and prioritize female voices
+        var femaleVoices: [AVSpeechSynthesisVoice] = []
+        
+        // First priority: Voices with gender property set to female
+        let genderFemaleVoices = allVoices.filter { voice in
+            voice.language.hasPrefix("en") && voice.gender == .female
+        }
+        femaleVoices.append(contentsOf: genderFemaleVoices)
+        print("🔍 SettingsManager: Found \(genderFemaleVoices.count) voices with gender == .female")
+        
+        // Debug: Print all English voices to see what's available  
+        let englishVoices = allVoices.filter { $0.language.hasPrefix("en") }
+        print("🔍 SettingsManager: All \(englishVoices.count) English voices available")
+        
+        // Log only first 5 voices for brevity
+        for voice in englishVoices.prefix(5) {
+            print("  - \(voice.name) (\(voice.language)) - Gender: \(voice.gender) - Quality: \(voice.quality)")
+        }
+        if englishVoices.count > 5 {
+            print("  ... and \(englishVoices.count - 5) more voices")
+        }
+        
+        // Second priority: Known female names
+        let femaleNamePatterns = ["samantha", "ava", "victoria", "allison", "susan", "zoe", "karen", "fiona", "moira", "tessa"]
+        
+        for voice in allVoices {
+            if voice.language.hasPrefix("en") && !femaleVoices.contains(voice) {
+                let voiceName = voice.name.lowercased()
+                if femaleNamePatterns.contains(where: { voiceName.contains($0) }) {
+                    print("✅ SettingsManager: Adding female voice by name: \(voice.name)")
+                    femaleVoices.append(voice)
+                }
+            }
+        }
+        
+        // Third priority: Any non-male names
+        let maleNames = ["alex", "daniel", "tom", "fred", "aaron", "arthur", "albert", "diego", "jorge", "rishi"]
+        
+        for voice in allVoices {
+            if voice.language.hasPrefix("en") && !femaleVoices.contains(voice) {
+                let voiceName = voice.name.lowercased()
+                let isMale = maleNames.contains { voiceName.contains($0) }
+                
+                if !isMale {
+                    print("✅ SettingsManager: Adding non-male voice: \(voice.name)")
+                    femaleVoices.append(voice)
+                }
+            }
+        }
+        
+        print("🎵 SettingsManager: Final female voices list: \(femaleVoices.count) voices")
+        for voice in femaleVoices {
+            print("  ✓ \(voice.name) (\(voice.language)) - Gender: \(voice.gender)")
+        }
+        
+        // If no female voices found, include all English voices as fallback
+        if femaleVoices.isEmpty {
+            print("⚠️ SettingsManager: No female voices found, using all English voices as fallback")
+            return englishVoices
+        }
+        
+        return femaleVoices
+    }
+    
+    func getSelectedInterjectionVoice() -> AVSpeechSynthesisVoice? {
+        guard let identifier = selectedInterjectionVoiceIdentifier else { return nil }
+        return AVSpeechSynthesisVoice(identifier: identifier)
+    }
+    
+    func setInterjectionVoice(_ voice: AVSpeechSynthesisVoice) {
+        print("🎵 SettingsManager: setInterjectionVoice called with \(voice.name) (identifier: \(voice.identifier))")
+        selectedInterjectionVoiceIdentifier = voice.identifier
+    }
+    
+    func getDefaultInterjectionVoice() -> AVSpeechSynthesisVoice? {
+        let femaleVoices = getAvailableFemaleVoices()
+        return femaleVoices.first ?? AVSpeechSynthesisVoice(language: "en-US")
     }
 }
