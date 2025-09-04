@@ -1262,52 +1262,124 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
     
     
     internal func extractLanguageFromSection(_ section: ContentSection) -> String? {
-        // Safe language extraction using prefix/dropFirst instead of String.Index
+        // Extract language from originalText instead of spokenText since we now include actual code content
         guard section.typeEnum == .codeBlock else {
             print("🔍 extractLanguage: Skipping non-code-block section")
             return nil
         }
         
-        guard let spokenText = section.parsedContent?.plainText,
-              !spokenText.isEmpty else {
-            print("🔍 extractLanguage: No spoken text available")
+        // Get the original text from the ParsedSection (stored in Core Data)
+        // We need to access this through the section's parsedContent relationship
+        // Since ContentSection doesn't directly store originalText, we'll parse from the first line
+        
+        // Alternative approach: extract from the section's position in the original text
+        guard let parsedContent = section.parsedContent,
+              let plainText = parsedContent.plainText,
+              !plainText.isEmpty else {
+            print("🔍 extractLanguage: No parsed content available")
             return nil
         }
         
+        // For now, let's check if the spoken text still has language info at the beginning
+        // This is a fallback - we might need to store language info differently later
         let startIndex = Int(section.startIndex)
         let endIndex = Int(section.endIndex)
         
-        print("🔍 extractLanguage: Safe extraction - start=\(startIndex), end=\(endIndex), textLength=\(spokenText.count)")
+        print("🔍 extractLanguage: Checking for language info - start=\(startIndex), end=\(endIndex), textLength=\(plainText.count)")
         
         // Safe bounds checking
         guard startIndex >= 0,
               endIndex > startIndex,
-              endIndex <= spokenText.count,
-              (endIndex - startIndex) < 500 else {  // Reasonable limit
+              endIndex <= plainText.count,
+              (endIndex - startIndex) < 2000 else {  // Increased limit for actual code content
             print("🔍 extractLanguage: Invalid bounds, returning nil")
             return nil
         }
         
         // Safe text extraction using prefix/dropFirst (no String.Index)
         var sectionText = ""
-        if endIndex <= spokenText.count && startIndex < endIndex {
-            let prefixedText = String(spokenText.prefix(endIndex))
+        if endIndex <= plainText.count && startIndex < endIndex {
+            let prefixedText = String(plainText.prefix(endIndex))
             sectionText = String(prefixedText.dropFirst(startIndex))
         }
         
-        print("🔍 extractLanguage: Extracted text: \"\(sectionText.prefix(50))...\" (\(sectionText.count) chars)")
+        print("🔍 extractLanguage: Extracted section text: \"\(sectionText.prefix(100))...\" (\(sectionText.count) chars)")
         
-        // Parse language from "[language code]" format
+        // NEW FORMAT: Parse language from "[language:code]" format  
+        if sectionText.hasPrefix("[") && sectionText.contains(":") && sectionText.contains("]") {
+            // Extract language from "[language:code content]" format
+            if let colonIndex = sectionText.firstIndex(of: ":") {
+                let languagePart = String(sectionText[sectionText.index(after: sectionText.startIndex)..<colonIndex])
+                let language = languagePart.trimmingCharacters(in: .whitespaces)
+                if !language.isEmpty && language != "code" { // Avoid extracting "code" as language
+                    print("🔍 extractLanguage: Found language from new format: \"\(language)\"")
+                    return language
+                }
+            }
+        }
+        
+        // FALLBACK 1: Check if old placeholder format still exists (for backward compatibility)
         if sectionText.hasPrefix("[") && sectionText.contains(" code]") {
             let parts = sectionText.components(separatedBy: " code]")
             if let languagePart = parts.first?.dropFirst() { // Remove "["
                 let language = String(languagePart).trimmingCharacters(in: .whitespaces)
-                print("🔍 extractLanguage: Found language: \"\(language)\"")
+                print("🔍 extractLanguage: Found language from old placeholder format: \"\(language)\"")
                 return language.isEmpty ? nil : language
             }
         }
         
-        print("🔍 extractLanguage: No language pattern found")
+        // FALLBACK 2: Try to detect language from common code patterns
+        let detectedLanguage = detectLanguageFromCode(sectionText)
+        if let language = detectedLanguage {
+            print("🔍 extractLanguage: Detected language from code patterns: \"\(language)\"")
+            return language
+        }
+        
+        print("🔍 extractLanguage: No language info found")
+        return nil
+    }
+    
+    // MARK: - Language Detection from Code Content
+    private func detectLanguageFromCode(_ codeText: String) -> String? {
+        let lowercased = codeText.lowercased()
+        
+        // Swift detection
+        if lowercased.contains("func ") || lowercased.contains("var ") || lowercased.contains("let ") || 
+           lowercased.contains("import ") || lowercased.contains("struct ") || lowercased.contains("class ") ||
+           lowercased.contains("@") && (lowercased.contains("state") || lowercased.contains("binding")) {
+            return "swift"
+        }
+        
+        // JavaScript/TypeScript detection
+        if lowercased.contains("function ") || lowercased.contains("const ") || lowercased.contains("=> ") || 
+           lowercased.contains("console.log") || lowercased.contains("document.") {
+            return "javascript"
+        }
+        
+        // Python detection
+        if lowercased.contains("def ") || lowercased.contains("import ") || lowercased.contains("print(") ||
+           lowercased.contains("if __name__") || lowercased.range(of: "^\\s*#", options: .regularExpression) != nil {
+            return "python"
+        }
+        
+        // Java detection
+        if lowercased.contains("public class") || lowercased.contains("public static void main") ||
+           lowercased.contains("system.out.println") {
+            return "java"
+        }
+        
+        // HTML detection
+        if lowercased.contains("<html") || lowercased.contains("<!doctype") || 
+           lowercased.contains("<body") || lowercased.contains("<div") {
+            return "html"
+        }
+        
+        // CSS detection
+        if lowercased.contains("{") && lowercased.contains(":") && lowercased.contains(";") &&
+           (lowercased.contains("color") || lowercased.contains("margin") || lowercased.contains("padding")) {
+            return "css"
+        }
+        
         return nil
     }
     

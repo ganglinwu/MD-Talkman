@@ -145,13 +145,36 @@ class MarkdownParser {
         // Extract language (if specified)
         let language = String(firstLine.dropFirst(3)).trimmingCharacters(in: .whitespaces)
         
-        // Create clean TTS text without interference markers
-        // We'll use section boundary detection instead of text markers
+        // Extract actual code content
+        var codeContent: [String] = []
+        for lineIndex in (startIndex + 1)..<endIndex {
+            codeContent.append(lines[lineIndex])
+        }
+        
+        // Convert code content to TTS-friendly text
+        let codeText = codeContent.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+        
+        // Create spoken text with actual code content
         let spokenText: String
-        if language.isEmpty {
-            spokenText = "[code] "
+        if codeText.isEmpty {
+            // Empty code block - use placeholder
+            if language.isEmpty {
+                spokenText = "[code] "
+            } else {
+                spokenText = "[\(language) code] "
+            }
         } else {
-            spokenText = "[\(language) code] "
+            // Include actual code content for TTS with language prefix for interjection system
+            let cleanedCode = codeText
+                .replacingOccurrences(of: "    ", with: " ") // Reduce indentation for speech
+                .replacingOccurrences(of: "\t", with: " ")   // Convert tabs to spaces
+            
+            // Prefix with language info for TTSManager to extract, but make it subtle for TTS
+            if language.isEmpty {
+                spokenText = "[\(cleanedCode)] " // Wrap in brackets to indicate code
+            } else {
+                spokenText = "[\(language):\(cleanedCode)] " // Language prefix for extraction
+            }
         }
         
         let section = ParsedSection(

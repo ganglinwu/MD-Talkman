@@ -414,6 +414,83 @@ final class EnhancedTTSManagerTests: XCTestCase {
         }
     }
     
+    func testActualCodeContentLanguageExtraction() {
+        // Test the new language extraction with actual code content format
+        let actualCodeText = """
+        # Modern Code Examples
+        
+        Some introduction text.
+        
+        [swift:func greet() { print("Hello, World!") }] 
+        
+        [javascript:function sayHello() { console.log("Hi!"); }] 
+        
+        [some code without language] 
+        """
+        
+        let actualContent = ParsedContent(context: mockContext)
+        actualContent.fileId = testFile.id
+        actualContent.plainText = actualCodeText
+        actualContent.lastParsed = Date()
+        
+        // Create code block sections with the new format
+        var actualSections: [ContentSection] = []
+        
+        // Swift section with actual code content
+        let swiftSection = ContentSection(context: mockContext)
+        swiftSection.startIndex = 50  // Start at the Swift code
+        swiftSection.endIndex = 95   // End after the Swift code
+        swiftSection.typeEnum = .codeBlock
+        swiftSection.level = 0
+        swiftSection.isSkippable = true
+        swiftSection.parsedContent = actualContent
+        actualSections.append(swiftSection)
+        
+        // JavaScript section with actual code content
+        let jsSection = ContentSection(context: mockContext)
+        jsSection.startIndex = 100  // Start at the JavaScript code
+        jsSection.endIndex = 150   // End after the JavaScript code
+        jsSection.typeEnum = .codeBlock
+        jsSection.level = 0
+        jsSection.isSkippable = true
+        jsSection.parsedContent = actualContent
+        actualSections.append(jsSection)
+        
+        // Generic code section without language
+        let genericSection = ContentSection(context: mockContext)
+        genericSection.startIndex = 155  // Start at the generic code
+        genericSection.endIndex = 185   // End after the generic code
+        genericSection.typeEnum = .codeBlock
+        genericSection.level = 0
+        genericSection.isSkippable = true
+        genericSection.parsedContent = actualContent
+        actualSections.append(genericSection)
+        
+        actualContent.contentSection = NSSet(array: actualSections)
+        testFile.parsedContent = actualContent
+        
+        // Test language extraction from our new format
+        let swiftLanguage = ttsManager.extractLanguageFromSection(swiftSection)
+        XCTAssertEqual(swiftLanguage, "swift", "Should extract 'swift' from new format")
+        
+        let jsLanguage = ttsManager.extractLanguageFromSection(jsSection)
+        XCTAssertEqual(jsLanguage, "javascript", "Should extract 'javascript' from new format")
+        
+        let genericLanguage = ttsManager.extractLanguageFromSection(genericSection)
+        XCTAssertNil(genericLanguage, "Should return nil for code without language prefix")
+        
+        // Verify TTS manager can handle the new format
+        ttsManager.loadMarkdownFile(testFile, context: mockContext)
+        
+        XCTAssertNoThrow(
+            ttsManager.play(),
+            "Should play with new actual code content format"
+        )
+        
+        RunLoop.current.run(until: Date().addingTimeInterval(0.3))
+        ttsManager.stop()
+    }
+    
     // MARK: - Enhanced Code Block Handling Tests
     
     func testCodeBlockAudioFeedbackIntegration() {

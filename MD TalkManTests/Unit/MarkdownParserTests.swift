@@ -92,7 +92,11 @@ final class MarkdownParserTests: XCTestCase {
         let codeSection = result.sections[1]
         XCTAssertEqual(codeSection.type, .codeBlock)
         XCTAssertTrue(codeSection.isSkippable)
-        XCTAssertEqual(codeSection.spokenText, "[swift code] ")
+        // Updated: Now includes actual code content with language prefix
+        XCTAssertTrue(codeSection.spokenText.hasPrefix("[swift:"))
+        XCTAssertTrue(codeSection.spokenText.contains("func hello()"))
+        XCTAssertTrue(codeSection.spokenText.contains("print(\"Hello, World!\")"))
+        XCTAssertTrue(codeSection.spokenText.hasSuffix("] "))
     }
     
     func testCodeBlockWithoutLanguage() throws {
@@ -106,7 +110,10 @@ final class MarkdownParserTests: XCTestCase {
         
         XCTAssertEqual(result.sections.count, 1)
         let codeSection = result.sections[0]
-        XCTAssertEqual(codeSection.spokenText, "[code] ")
+        // Updated: Now includes actual code content without language prefix
+        XCTAssertTrue(codeSection.spokenText.hasPrefix("["))
+        XCTAssertTrue(codeSection.spokenText.contains("some code here"))
+        XCTAssertTrue(codeSection.spokenText.hasSuffix("] "))
     }
     
     func testUnclosedCodeBlock() throws {
@@ -323,6 +330,80 @@ final class MarkdownParserTests: XCTestCase {
     }
     
     // MARK: - Performance Tests
+    
+    func testActualCodeContentFlow() throws {
+        // Test with language specified
+        let markdownWithLanguage = """
+        # Swift Example
+        
+        Here's some Swift code:
+        
+        ```swift
+        func greet() {
+            print("Hello, World!")
+        }
+        ```
+        
+        End of example.
+        """
+        
+        let resultWithLanguage = parser.parseMarkdownForTTS(markdownWithLanguage)
+        XCTAssertEqual(resultWithLanguage.sections.count, 3)
+        
+        let swiftCodeSection = resultWithLanguage.sections[1]
+        XCTAssertEqual(swiftCodeSection.type, .codeBlock)
+        XCTAssertTrue(swiftCodeSection.isSkippable)
+        
+        // Validate actual code content is included
+        XCTAssertTrue(swiftCodeSection.spokenText.contains("func greet()"))
+        XCTAssertTrue(swiftCodeSection.spokenText.contains("print(\"Hello, World!\")"))
+        
+        // Validate language prefix format for interjection system
+        XCTAssertTrue(swiftCodeSection.spokenText.hasPrefix("[swift:"))
+        XCTAssertTrue(swiftCodeSection.spokenText.hasSuffix("] "))
+        
+        // Test without language specified
+        let markdownWithoutLanguage = """
+        # Generic Code Example
+        
+        ```
+        function sayHello() {
+            console.log("Hello!");
+        }
+        ```
+        """
+        
+        let resultWithoutLanguage = parser.parseMarkdownForTTS(markdownWithoutLanguage)
+        XCTAssertEqual(resultWithoutLanguage.sections.count, 2)
+        
+        let genericCodeSection = resultWithoutLanguage.sections[1]
+        XCTAssertEqual(genericCodeSection.type, .codeBlock)
+        XCTAssertTrue(genericCodeSection.isSkippable)
+        
+        // Validate actual code content is included
+        XCTAssertTrue(genericCodeSection.spokenText.contains("function sayHello()"))
+        XCTAssertTrue(genericCodeSection.spokenText.contains("console.log"))
+        
+        // Validate no-language format (just brackets, no language prefix)
+        XCTAssertTrue(genericCodeSection.spokenText.hasPrefix("["))
+        XCTAssertFalse(genericCodeSection.spokenText.contains(":")) // No language prefix
+        XCTAssertTrue(genericCodeSection.spokenText.hasSuffix("] "))
+        
+        // Test empty code block (should still use old placeholder format)
+        let markdownEmpty = """
+        ```swift
+        ```
+        """
+        
+        let resultEmpty = parser.parseMarkdownForTTS(markdownEmpty)
+        XCTAssertEqual(resultEmpty.sections.count, 1)
+        
+        let emptyCodeSection = resultEmpty.sections[0]
+        XCTAssertEqual(emptyCodeSection.type, .codeBlock)
+        
+        // Empty code blocks should still use placeholder format
+        XCTAssertEqual(emptyCodeSection.spokenText, "[swift code] ")
+    }
     
     func testLargeDocumentPerformance() throws {
         // Create a large document

@@ -137,15 +137,28 @@ class InterjectionManager: ObservableObject {
     private func executeCodeBlockEnd(section: ContentSection, ttsManager: TTSManager, completion: @escaping () -> Void) {
         assert(Thread.isMainThread, "Code block end must run on main thread")
         
+        print("🎯 InterjectionManager: Executing code block end")
         let notificationStyle = settingsManager.codeBlockNotificationStyle
+        print("🎯 InterjectionManager: End notification style: \(notificationStyle)")
         
         switch notificationStyle {
-        case .smartDetection, .tonesOnly, .both:
+        case .smartDetection:
+            // Provide "code section ends" announcement for smart detection
+            provideCodeEndNotification(ttsManager: ttsManager, completion: completion)
+            
+        case .tonesOnly:
+            // Play tone only
             playCodeBlockToneWithPause(.codeBlockEnd, completion: completion)
             
+        case .both:
+            // Play tone first, then voice announcement
+            playCodeBlockToneWithPause(.codeBlockEnd) { [weak self] in
+                self?.provideCodeEndNotification(ttsManager: ttsManager, completion: completion)
+            }
+            
         case .voiceOnly:
-            // No end tone for voice-only mode
-            completion()
+            // Voice announcement only (no tone)
+            provideCodeEndNotification(ttsManager: ttsManager, completion: completion)
         }
     }
     
@@ -193,6 +206,34 @@ class InterjectionManager: ObservableObject {
         }
     }
     
+    private func provideCodeEndNotification(ttsManager: TTSManager, completion: @escaping () -> Void) {
+        assert(Thread.isMainThread, "Code end notification must run on main thread")
+        
+        print("🗣️ InterjectionManager: Providing code end notification: 'code section ends'")
+        
+        // Use the shared TTSManager synthesizer instead of creating a new one
+        guard let sharedSynthesizer = ttsManager.getSynthesizer() else {
+            print("❌ InterjectionManager: No shared synthesizer available - completing without voice")
+            completion()
+            return
+        }
+        
+        // Get the selected interjection voice
+        let interjectionVoice = getInterjectionVoice()
+        
+        // Check for Siri voice compatibility
+        if let voice = interjectionVoice, voice.identifier.contains("siri") {
+            print("⚠️ InterjectionManager: Skipping Siri voice (\(voice.name)) - not compatible with AVSpeechSynthesizer")
+            // Find a non-Siri fallback
+            let fallbackVoice = findNonSiriVoice() ?? AVSpeechSynthesisVoice(language: "en-US")
+            performInterjectionSpeech("code section ends", voice: fallbackVoice, synthesizer: sharedSynthesizer, completion: completion)
+        } else {
+            // Use the selected voice or system default
+            let voiceToUse = interjectionVoice ?? AVSpeechSynthesisVoice(language: "en-US")
+            performInterjectionSpeech("code section ends", voice: voiceToUse, synthesizer: sharedSynthesizer, completion: completion)
+        }
+    }
+    
     private func performInterjectionSpeech(_ text: String, voice: AVSpeechSynthesisVoice?, synthesizer: AVSpeechSynthesizer, completion: @escaping () -> Void) {
         assert(Thread.isMainThread, "Interjection speech must run on main thread")
         
@@ -236,6 +277,17 @@ class InterjectionManager: ObservableObject {
         
         print("🧪 InterjectionManager: Testing language notification for: '\(language) code'")
         provideLanguageNotification(language, ttsManager: ttsManager, completion: completion)
+    }
+    
+    /// Test method for VoiceSettingsView to verify code end notification functionality
+    /// - Parameters:
+    ///   - ttsManager: Reference to TTS manager for shared synthesizer access
+    ///   - completion: Called when the test is complete
+    func testCodeEndNotification(ttsManager: TTSManager, completion: @escaping () -> Void) {
+        assert(Thread.isMainThread, "Test code end notification must run on main thread")
+        
+        print("🧪 InterjectionManager: Testing code end notification: 'code section ends'")
+        provideCodeEndNotification(ttsManager: ttsManager, completion: completion)
     }
     
     // MARK: - Voice Selection
