@@ -389,6 +389,48 @@ class TTSManager: NSObject, ObservableObject {
             print("🔍 Generating metadata")
             let metadata = generateMetadataForPosition(position)
             
+            // Check if we need to insert a language announcement for code blocks
+            if let language = metadata?.language, metadata?.contentType == .codeBlock {
+                print("🔍 Creating female voice language announcement: \(language) code")
+                
+                // Create language announcement utterance with female voice
+                let languageText = "\(language) code"
+                let languageUtterance = AVSpeechUtterance(string: languageText)
+                
+                // Get female interjection voice from SettingsManager
+                let femaleVoice = settingsManager.getSelectedInterjectionVoice() 
+                               ?? settingsManager.getDefaultInterjectionVoice() 
+                               ?? AVSpeechSynthesisVoice(language: "en-US")
+                
+                languageUtterance.voice = femaleVoice
+                languageUtterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.0
+                languageUtterance.volume = 0.85
+                languageUtterance.preUtteranceDelay = 0.2
+                languageUtterance.postUtteranceDelay = 1.5  // Longer pause for user to skip technical content
+                
+                let languageMetadata = UtteranceMetadata(
+                    contentType: .paragraph, // Treat as regular content for queue purposes
+                    language: language,
+                    isSkippable: false,
+                    interjectionEvents: []
+                )
+                
+                let languageQueuedUtterance = QueuedUtterance(
+                    utterance: languageUtterance,
+                    startPosition: position,
+                    endPosition: position, // Zero-length for announcement
+                    sectionIndex: sectionIndex,
+                    isInterjection: true, // Mark as interjection
+                    priority: .normal,
+                    metadata: languageMetadata,
+                    performance: nil
+                )
+                
+                // Add language announcement to queue first
+                utteranceQueueManager.appendUtterance(languageQueuedUtterance)
+                print("📝 Added female voice language announcement: \"\(languageText)\"")
+            }
+            
             print("🔍 Creating QueuedUtterance")
             let queuedUtterance = QueuedUtterance(
                 utterance: utterance,
