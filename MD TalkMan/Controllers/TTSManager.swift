@@ -22,6 +22,9 @@ enum TTSPlaybackState: Equatable {
 // MARK: - TTS Manager
 class TTSManager: NSObject, ObservableObject {
     
+    // MARK: - Shared Instance
+    static let shared = TTSManager()
+    
     // MARK: - Properties
     @Published var playbackState: TTSPlaybackState = .idle
     @Published var currentPosition: Int = 0
@@ -362,7 +365,12 @@ class TTSManager: NSObject, ObservableObject {
             }
             
             print("🔍 Getting text chunk \(position)-\(chunkEndPosition)")
-            let textChunk = getTextChunk(from: plainText, start: position, end: chunkEndPosition)
+            // Safe text chunking using String.prefix/dropFirst instead of String.Index
+            var textChunk = ""
+            if position >= 0 && chunkEndPosition <= plainText.count && position < chunkEndPosition {
+                let prefixedText = String(plainText.prefix(chunkEndPosition))
+                textChunk = String(prefixedText.dropFirst(position))
+            }
             print("🔍 Got text chunk: \(textChunk.count) characters")
             
             guard !textChunk.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { 
@@ -1212,51 +1220,79 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
     
     
     internal func extractLanguageFromSection(_ section: ContentSection) -> String? {
-        // Extract language from the original text (e.g., "[swift code]" -> "swift")
-        let spokenText = section.parsedContent?.plainText ?? ""
-        let startIndex = Int(section.startIndex)
-        let endIndex = Int(section.endIndex)
-        
-        print("🔍 extractLanguage: startIndex=\(startIndex), endIndex=\(endIndex), textLength=\(spokenText.count)")
-        
-        // Enhanced safety checks
-        guard startIndex >= 0,
-              endIndex >= startIndex,
-              endIndex <= spokenText.count,
-              startIndex < spokenText.count,
-              (endIndex - startIndex) < 1000 else {  // Reasonable section size limit
-            print("⚠️ extractLanguage: Invalid bounds, returning nil")
+        // Safe language extraction using prefix/dropFirst instead of String.Index
+        guard section.typeEnum == .codeBlock else {
+            print("🔍 extractLanguage: Skipping non-code-block section")
             return nil
         }
         
-        // Safe string extraction using String.Index
-        let textStartIndex = spokenText.index(spokenText.startIndex, offsetBy: startIndex)
-        let textEndIndex = spokenText.index(spokenText.startIndex, offsetBy: endIndex)
+        guard let spokenText = section.parsedContent?.plainText,
+              !spokenText.isEmpty else {
+            print("🔍 extractLanguage: No spoken text available")
+            return nil
+        }
         
-        let sectionText = String(spokenText[textStartIndex..<textEndIndex])
-        print("🔍 extractLanguage: sectionText=\"\(sectionText.prefix(50))...\"")
+        let startIndex = Int(section.startIndex)
+        let endIndex = Int(section.endIndex)
+        
+        print("🔍 extractLanguage: Safe extraction - start=\(startIndex), end=\(endIndex), textLength=\(spokenText.count)")
+        
+        // Safe bounds checking
+        guard startIndex >= 0,
+              endIndex > startIndex,
+              endIndex <= spokenText.count,
+              (endIndex - startIndex) < 500 else {  // Reasonable limit
+            print("🔍 extractLanguage: Invalid bounds, returning nil")
+            return nil
+        }
+        
+        // Safe text extraction using prefix/dropFirst (no String.Index)
+        var sectionText = ""
+        if endIndex <= spokenText.count && startIndex < endIndex {
+            let prefixedText = String(spokenText.prefix(endIndex))
+            sectionText = String(prefixedText.dropFirst(startIndex))
+        }
+        
+        print("🔍 extractLanguage: Extracted text: \"\(sectionText.prefix(50))...\" (\(sectionText.count) chars)")
         
         // Parse language from "[language code]" format
         if sectionText.hasPrefix("[") && sectionText.contains(" code]") {
-            let languagePart = sectionText.dropFirst().dropLast(" code]".count)
-            let language = String(languagePart).trimmingCharacters(in: .whitespaces)
-            print("🔍 extractLanguage: found language=\"\(language)\"")
-            return language
+            let parts = sectionText.components(separatedBy: " code]")
+            if let languagePart = parts.first?.dropFirst() { // Remove "["
+                let language = String(languagePart).trimmingCharacters(in: .whitespaces)
+                print("🔍 extractLanguage: Found language: \"\(language)\"")
+                return language.isEmpty ? nil : language
+            }
         }
         
-        print("🔍 extractLanguage: no language found")
+        print("🔍 extractLanguage: No language pattern found")
         return nil
     }
     
     // MARK: - Queue-Based Helper Methods
     
     private func getTextChunk(from plainText: String, start: Int, end: Int) -> String {
-        guard start < end, start >= 0, end <= plainText.count else { return "" }
+        print("🔍 getTextChunk: Called with start=\(start), end=\(end), plainText.count=\(plainText.count)")
         
-        let startIndex = plainText.index(plainText.startIndex, offsetBy: start)
-        let endIndex = plainText.index(plainText.startIndex, offsetBy: end)
+        guard start < end, start >= 0, end <= plainText.count else { 
+            print("🔍 getTextChunk: Invalid bounds, returning empty string")
+            return "" 
+        }
         
-        return String(plainText[startIndex..<endIndex])
+        print("🔍 getTextChunk: Converting to Array")
+        // Use safer substring approach to avoid String.Index hang issues
+        let textArray = Array(plainText)
+        print("🔍 getTextChunk: Array created with \(textArray.count) characters")
+        
+        guard start < textArray.count && end <= textArray.count else { 
+            print("🔍 getTextChunk: Array bounds check failed, returning empty string")
+            return "" 
+        }
+        
+        print("🔍 getTextChunk: Extracting substring")
+        let result = String(textArray[start..<end])
+        print("🔍 getTextChunk: Returning \(result.count) characters")
+        return result
     }
     
     private func findSectionIndexForPosition(_ position: Int) -> Int {
@@ -1269,16 +1305,35 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
     }
     
     private func generateMetadataForPosition(_ position: Int) -> UtteranceMetadata? {
+        print("🔍 generateMetadata: Finding section for position \(position)")
         let sectionIndex = findSectionIndexForPosition(position)
-        guard sectionIndex >= 0 && sectionIndex < contentSections.count else { return nil }
+        print("🔍 generateMetadata: Found section index \(sectionIndex)")
+        
+        guard sectionIndex >= 0 && sectionIndex < contentSections.count else { 
+            print("🔍 generateMetadata: Invalid section index, returning nil")
+            return nil 
+        }
         
         let section = contentSections[sectionIndex]
-        return UtteranceMetadata(
+        print("🔍 generateMetadata: Section type is \(section.typeEnum)")
+        
+        print("🔍 generateMetadata: About to check if section is codeBlock")
+        let isCodeBlock = section.typeEnum == .codeBlock
+        print("🔍 generateMetadata: isCodeBlock = \(isCodeBlock)")
+        
+        // Safe language extraction using prefix/dropFirst approach
+        let language = isCodeBlock ? extractLanguageFromSection(section) : nil
+        print("🔍 generateMetadata: Language extraction complete, language = \(language?.description ?? "nil")")
+        
+        print("🔍 generateMetadata: Creating UtteranceMetadata object")
+        let metadata = UtteranceMetadata(
             contentType: section.typeEnum,
-            language: extractLanguageFromSection(section),
+            language: language,
             isSkippable: section.isSkippable,
             interjectionEvents: []
         )
+        print("🔍 generateMetadata: UtteranceMetadata created successfully")
+        return metadata
     }
     
     // Legacy single-utterance playback (fallback)

@@ -10,7 +10,7 @@ import CoreData
 
 struct ReaderView: View {
     @Environment(\.managedObjectContext) private var viewContext
-    @StateObject private var ttsManager = TTSManager()
+    @ObservedObject private var ttsManager = TTSManager.shared
     @State private var showingVoiceSettings = false
     @State private var showVisualDisplay = false
     
