@@ -46,7 +46,7 @@ class TTSManager: NSObject, ObservableObject {
     private let utteranceQueueManager = UtteranceQueueManager()
     private var queuedUtterancesInSynthesizer: Set<ObjectIdentifier> = []
     private var currentQueuedUtterance: QueuedUtterance?
-    private var isQueueMode: Bool = true  // Feature flag for testing
+    internal var isQueueMode: Bool = true  // Feature flag for testing - internal for test access
     
     // Available enhanced voices
     private var enhancedVoices: [AVSpeechSynthesisVoice] = []
