@@ -368,9 +368,10 @@ class TTSManager: ObservableObject {
 
 ### Markdown Processing for TTS
 - Strip markdown syntax (**, __, [], etc.)
-- Convert code blocks to "code section begins... code section ends"
-- Handle lists: "bullet point 1, bullet point 2"
+- **Enhanced Code Blocks**: Include actual code content with language prefixes (e.g., `[swift:func greet() { print("Hello") }]`)
+- Handle lists: "bullet point 1, bullet point 2"  
 - Section detection for smart skipping
+- **Language Preservation**: Maintain language info for interjection system while delivering real content
 
 ### Interjection Event System
 A sophisticated audio management system that handles contextual announcements during TTS playback without interrupting the natural speech flow.
@@ -402,16 +403,16 @@ enum InterjectionEvent {
 - **Memory Safe**: Temporary synthesizer instances with proper delegate lifecycle management
 - **Extensible Design**: Ready for Claude insights, contextual help, and user interactions
 
-**Code Block Enhancement Flow:**
+**Complete Code Block Flow:**
 ```swift
-// 1. Code block detected during TTS section transition
-// 2. InterjectionEvent.codeBlockStart created with language info
-// 3. Event deferred to pendingInterjection property  
-// 4. Natural TTS pause occurs (utterance completes)
-// 5. InterjectionManager executes event:
-//    - Language announcement: "swift code" (female voice)
-//    - End-of-interjection tone (subtle completion signal)
-// 6. TTS resumes naturally with next content chunk
+// 1. MarkdownParser includes actual code: [swift:func greet() { print("Hello") }]
+// 2. Code block detected during TTS section transition  
+// 3. InterjectionEvent.codeBlockStart created with language info
+// 4. Female voice announces: "swift code" + 1.5s pause
+// 5. Main TTS voice reads actual code: "func greet() { print(\"Hello\") }"
+// 6. InterjectionEvent.codeBlockEnd triggered on exit
+// 7. Female voice announces: "code section ends" 
+// 8. TTS continues with next content naturally
 ```
 
 **Phase 4 Readiness:**
@@ -595,6 +596,7 @@ ContentView
 - Memory-safe temporary synthesizer instances with proper delegate lifecycle management
 - Extensible architecture ready for Claude AI insights, user questions, and contextual help
 - Code block language detection and announcement: "swift code", "javascript code", etc.
+- **Complete audio boundaries**: "code section ends" announcements for clear transitions
 - End-of-interjection tone system for clear audio boundaries and professional UX
 
 **Comprehensive Testing**
@@ -610,7 +612,10 @@ ContentView
 ```
 Markdown: ## Getting Started → TTS: "Heading level 2: Getting Started."
 Markdown: **bold text** → TTS: "bold text"  
-Markdown: ```swift\ncode\n``` → TTS: "Code block in swift begins. [Code content omitted] Code block ends."
+Markdown: ```swift\nfunc greet() {\n    print("Hello")\n}\n``` → TTS: 
+  Female voice: "swift code" + 1.5s pause → 
+  Male voice: "func greet() { print(\"Hello\") }" → 
+  Female voice: "code section ends"
 Markdown: > Quote → TTS: "Quote: Quote. End quote."
 Markdown: - List item → TTS: "• List item."
 ```
