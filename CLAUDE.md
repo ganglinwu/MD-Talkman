@@ -87,7 +87,7 @@ A SwiftUI app for hands-free markdown reading with Claude.ai integration, design
 ```swift
 - startIndex: Int
 - endIndex: Int  
-- type: enum (header, paragraph, codeBlock, list)
+- type: enum (header, paragraph, codeBlock, list, announcement)
 - level: Int? (for headers)
 - isSkippable: Bool (technical content detection)
 ```
@@ -477,12 +477,15 @@ ContentView
 - [x] **Performance Optimization**: Memory management and resource cleanup validation
 - [x] **Cross-Platform Testing**: iPhone/iPad UI test compatibility and accessibility
 
-### Phase 4: Queue-Based TTS Architecture ✅ COMPLETED 
+### Phase 4: Section-Based Voice Switching Architecture ✅ COMPLETED 
 - [x] **Revolutionary Queue-Based TTS**: Multi-utterance pre-loading eliminates playbook gaps completely
 - [x] **RecycleQueue with Instant Replay**: <50ms backward scrubbing vs 500-1000ms regeneration approach
 - [x] **Smart Position Tracking**: Text window stays synchronized through interjections and code blocks
 - [x] **Context Recovery Features**: "Replay last section" and context recovery after interjections break flow
 - [x] **Memory-Efficient Circular Buffer**: 10-utterance RecycleQueue (~500KB max) with automatic eviction
+- [x] **Section-Based Voice Switching**: Clean architecture enabling female announcements with male code content
+- [x] **ContentSection-Aware Chunking**: Respects section boundaries instead of arbitrary text chunking
+- [x] **Multi-Voice Audio Flow**: Seamless transitions between announcement and content voices
 - [x] **Claude AI Ready Architecture**: Priority interrupt system prepared for conversational AI integration
 - [x] **Comprehensive Documentation**: ADR-005 with complete technical specification and implementation guide
 
@@ -588,6 +591,16 @@ ContentView
 - UI status integration with parsing progress indicators and file readiness states
 - Production-ready error handling and fallback strategies for robust operation
 
+**Section-Based Voice Switching Architecture (Phase 4 Complete)**
+- Clean ContentSectionType.announcement enum for voice selection without markers
+- MarkdownParser creates separate announcement sections for code block boundaries
+- TTSManager processes sections individually instead of arbitrary text chunking
+- Female voice announcements ("Swift code block", "Swift code block ends") 
+- Male voice for actual code content with seamless transitions
+- Eliminates feedback loops caused by complex chunking algorithms
+- Text window scrolling properly synchronized through section boundaries
+- **Complete audio boundaries**: Natural voice transitions without artificial markers
+
 **Interjection Event System (Phase 4 Foundation)**
 - InterjectionManager: Event-driven audio announcement system with natural TTS flow coordination
 - Deferred execution pattern: Events wait for natural utterance completion (no forced interruptions)
@@ -596,7 +609,6 @@ ContentView
 - Memory-safe temporary synthesizer instances with proper delegate lifecycle management
 - Extensible architecture ready for Claude AI insights, user questions, and contextual help
 - Code block language detection and announcement: "swift code", "javascript code", etc.
-- **Complete audio boundaries**: "code section ends" announcements for clear transitions
 - End-of-interjection tone system for clear audio boundaries and professional UX
 
 **Comprehensive Testing**

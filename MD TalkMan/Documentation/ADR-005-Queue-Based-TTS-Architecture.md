@@ -124,12 +124,20 @@ class UtteranceQueueManager: ObservableObject {
 3. ✅ Added `findReplayUtterances()` for sub-50ms backward scrubbing (vs 500-1000ms regeneration)
 4. ✅ Added context replay features for post-interjection content recovery
 
-### 🔄 Phase 4: Dynamic Settings **IN PROGRESS**
+### ✅ Phase 4: Section-Based Voice Switching **COMPLETED**
+1. ✅ Added `.announcement` ContentSectionType enum for clean voice selection 
+2. ✅ Refactored MarkdownParser to create separate announcement sections for code blocks
+3. ✅ Updated TTSManager chunking to process sections individually instead of arbitrary text blocks
+4. ✅ Implemented female voice announcements with male voice code content
+5. ✅ Eliminated feedback loops caused by complex marker-based chunking
+6. ✅ Fixed text window scrolling through proper section boundary processing
+
+### 🔄 Phase 5: Dynamic Settings **IN PROGRESS**
 1. ⏳ Voice/speed changes without restart (requires further testing)
 2. ⏳ Batch utterance updates (architecture ready, needs implementation)
 3. ⏳ Settings changes during playback (requires further testing)
 
-### 🚀 Phase 5: Claude AI Integration **READY**
+### 🚀 Phase 6: Claude AI Integration **READY**
 1. 🎯 Queue architecture ready for Claude response handling with priority
 2. 🎯 Insertion strategies implemented (`insertAtFrontOfQueue()` with priority)
 3. 🎯 Full conversation flow with TTS ready for integration
@@ -227,12 +235,17 @@ class UtteranceQueueManager: ObservableObject {
 2. **Infinite Loop Prevention**: Added bounds checking in `extractLanguageFromSection()` to prevent string index out-of-bounds crashes
 3. **Thread Safety**: Added async delays in `playQueuedUtterance()` to prevent immediate synthesizer calls that could cause deadlocks
 4. **Memory Management**: Implemented proper `UtterancePerformance` tracking for RecycleQueue with completion timestamps and character-per-second metrics
+5. **Feedback Loop Elimination**: Resolved audio feedback caused by complex marker-based chunking by switching to clean section-based processing
+6. **Voice Switching Architecture**: Eliminated artificial Unicode markers (🎤) in favor of ContentSectionType.announcement for clean voice selection
 
 ### Performance Achievements
 - **Gap-Free Playback**: Multi-utterance queueing eliminated audio gaps between sections
 - **Instant Rewind**: RecycleQueue provides sub-50ms backward scrubbing without content regeneration  
 - **Memory Efficiency**: Circular buffer with 10-utterance limit keeps memory usage under 200KB
 - **Smooth Interjections**: Code block announcements work seamlessly with proper text synchronization
+- **Section-Based Voice Switching**: Female announcements ("Swift code block") with male code content seamlessly
+- **Eliminated Feedback Loops**: Clean section processing replaced complex marker-based chunking
+- **Perfect Text Window Sync**: Text scrolling properly follows TTS through section boundaries
 
 ### Future Integration Points
 - **Claude AI Ready**: Priority-based `insertAtFrontOfQueue()` system ready for AI response interjections
@@ -241,6 +254,8 @@ class UtteranceQueueManager: ObservableObject {
 - **Performance Monitoring**: `UtterancePerformance` tracking enables detailed playback analytics
 
 ### Files Modified
-- **TTSManager.swift**: Added queue-based playback system alongside legacy single-utterance mode
+- **TTSManager.swift**: Added queue-based playback system alongside legacy single-utterance mode, section-based chunking for voice switching
 - **QueuedUtterance.swift**: Complete queue management system with RecycleQueue for instant replay
-- **ADR-005**: Updated from "Proposed" to "Implemented" with detailed results
+- **MarkdownParser.swift**: Refactored to create separate announcement sections for clean voice selection
+- **CoreDataEnums.swift**: Added ContentSectionType.announcement for section-based voice switching
+- **ADR-005**: Updated from "Proposed" to "Implemented" with section-based architecture completion

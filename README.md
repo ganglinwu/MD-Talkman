@@ -6,11 +6,13 @@ A SwiftUI app for hands-free markdown reading with Claude.ai integration, design
 
 MD TalkMan transforms markdown documents into an audio-first experience, perfect for consuming technical content while driving, walking, or when visual attention isn't available. The app integrates with GitHub repositories and Claude.ai for intelligent content interaction.
 
-## ✅ Current Status: Phase 2+ Complete - APNs Integration & GitHub Management UI
+## ✅ Current Status: Phase 4 Complete - Section-Based Voice Switching Architecture
 
 ### 🎵 **Audio-First Markdown Experience**
 - **Smart TTS Conversion**: Markdown syntax is transformed into natural speech
+- **Section-Based Voice Switching**: Female announcements ("Swift code block") with male code content
 - **Visual Text Display**: Real-time text highlighting synchronized with TTS
+- **Queue-Based TTS Architecture**: Gap-free playback with instant backward scrubbing
 - **Section Navigation**: Skip between headers, paragraphs, code blocks
 - **Technical Content Skipping**: Automatically identify and skip code blocks
 - **Speed Control**: Adjustable playback speed (0.5x - 2.0x)
@@ -70,7 +72,9 @@ Output: "Bold text and italic text"
 Input:  ```swift
         let example = "code"
         ```
-Output: "Code block in swift begins. [Code content omitted for brevity] Code block ends."
+Output: Female voice: "Swift code block" → 
+        Male voice: "let example = \"code\"" → 
+        Female voice: "Swift code block ends"
 
 Input:  > This is a quote
 Output: "Quote: This is a quote. End quote."
@@ -134,7 +138,16 @@ xcodebuild test -project "MD TalkMan.xcodeproj" -scheme "MD TalkMan" -only-testi
 - **GitHub Webhook Processing**: Smart markdown file change detection
 - **EC2 Production Deployment**: Scalable webhook processing infrastructure
 
-## 🎉 **Recent Updates (August 2025)**
+## 🎉 **Recent Updates (September 2025)**
+
+### Phase 4: Section-Based Voice Switching Architecture Complete ✅
+- **Multi-Voice TTS System**: Female announcements for code blocks with male content narration
+- **Queue-Based Architecture**: Revolutionary multi-utterance pre-loading eliminates audio gaps
+- **RecycleQueue Innovation**: Sub-50ms backward scrubbing vs 500-1000ms content regeneration
+- **Section-Aware Chunking**: Processes ContentSections individually instead of arbitrary text blocks
+- **Eliminated Feedback Loops**: Clean architecture replaced complex marker-based systems
+- **Perfect Text Window Sync**: Text scrolling properly follows TTS through section boundaries
+- **Claude AI Ready**: Priority interrupt system prepared for conversational AI integration
 
 ### APNs Push Notification Integration Complete ✅
 - **iOS Client Integration**: Full push notification handling with UserNotifications framework
@@ -168,13 +181,34 @@ xcodebuild test -project "MD TalkMan.xcodeproj" -scheme "MD TalkMan" -only-testi
 - [x] GitHub Management UI with proper repository management
 - [x] Webhook debugging and architecture documentation
 
-### Phase 3: Claude.ai Integration
+### Phase 3: Test Infrastructure & Quality Assurance ✅ COMPLETED
+- [x] Comprehensive test suite hardening (72 unit, integration, and UI tests)
+- [x] Core Data relationship validation and error fixes
+- [x] Swift 6 compatibility and Sendable conformance
+- [x] UI test automation enhancement
+- [x] Error handling robustness and graceful degradation
+- [x] TTS state management validation
+- [x] Performance optimization and memory management
+- [x] Cross-platform testing (iPhone/iPad compatibility)
+
+### Phase 4: Section-Based Voice Switching Architecture ✅ COMPLETED
+- [x] Revolutionary queue-based TTS with multi-utterance pre-loading
+- [x] RecycleQueue with instant replay (sub-50ms backward scrubbing)
+- [x] Smart position tracking through interjections and code blocks
+- [x] Context recovery features for post-interjection flow
+- [x] Memory-efficient circular buffer (10-utterance limit)
+- [x] Section-based voice switching (female announcements, male content)
+- [x] ContentSection-aware chunking respecting boundaries
+- [x] Multi-voice audio flow with seamless transitions
+- [x] Claude AI ready architecture with priority interrupt system
+
+### Phase 5: Claude.ai Integration
 - [ ] Speech-to-text for voice questions
 - [ ] Claude API integration with file context
 - [ ] Conversation history per document
-- [ ] Claude response TTS playback
+- [ ] Claude response TTS playback using priority queue insertion
 
-### Phase 4: CarPlay & Accessibility
+### Phase 6: CarPlay & Accessibility
 - [ ] CarPlay integration for steering wheel controls
 - [ ] iOS Shortcuts and Siri integration
 - [ ] Voice commands for hands-free operation
