@@ -127,7 +127,13 @@ class MarkdownParser {
     // MARK: - Code Block Parsing
     private func parseCodeBlock(lines: [String], startIndex: Int, textIndex: Int) -> (sections: [ParsedSection], nextLineIndex: Int)? {
         let firstLine = lines[startIndex].trimmingCharacters(in: .whitespaces)
-        guard firstLine.hasPrefix("```") else { return nil }
+        print("🔍 MarkdownParser: Checking line for code block: '\(firstLine)'")
+        guard firstLine.hasPrefix("```") else { 
+            print("🔍 MarkdownParser: Not a code block, returning nil")
+            return nil 
+        }
+        
+        print("✅ MarkdownParser: Found code block! Processing with clean announcement sections")
         
         // Find closing ```
         var endIndex = startIndex + 1
@@ -162,37 +168,36 @@ class MarkdownParser {
         var currentTextIndex = textIndex
         
         if codeText.isEmpty {
-            // Empty code block - create simple announcement sections with markers
+            // Empty code block - create clean announcement sections
             let openingText = language.isEmpty ? "Code block. " : "\(language.capitalized) code block. "
             let closingText = language.isEmpty ? "Code block ends. " : "\(language.capitalized) code block ends. "
             
-            // Opening announcement (female voice) - add invisible marker
-            let markedOpeningText = "\u{200B}🎤\u{200B}\(openingText)" // Zero-width space + microphone + zero-width space
+            // Opening announcement (will use female voice based on .announcement type)
+            print("🎤 MarkdownParser: Creating opening announcement section (empty): '\(openingText.trimmingCharacters(in: .whitespacesAndNewlines))'")
             sections.append(ParsedSection(
                 startIndex: currentTextIndex,
-                endIndex: currentTextIndex + markedOpeningText.count,
-                type: .paragraph, // Use paragraph type for announcements
+                endIndex: currentTextIndex + openingText.count,
+                type: .announcement, // Clean section type for announcements
                 level: 0,
                 isSkippable: false,
                 originalText: "```\(language)",
-                spokenText: markedOpeningText
+                spokenText: openingText
             ))
-            currentTextIndex += markedOpeningText.count
+            currentTextIndex += openingText.count
             
-            // Closing announcement (female voice) - add invisible marker
-            let markedClosingText = "\u{200B}🎤\u{200B}\(closingText)" // Zero-width space + microphone + zero-width space
+            // Closing announcement (will use female voice based on .announcement type)
             sections.append(ParsedSection(
                 startIndex: currentTextIndex,
-                endIndex: currentTextIndex + markedClosingText.count,
-                type: .paragraph, // Use paragraph type for announcements
+                endIndex: currentTextIndex + closingText.count,
+                type: .announcement, // Clean section type for announcements
                 level: 0,
                 isSkippable: false,
                 originalText: "```",
-                spokenText: markedClosingText
+                spokenText: closingText
             ))
             
         } else {
-            // Code block with content - create three sections
+            // Code block with content - create three clean sections
             let openingText = language.isEmpty ? "Code block. " : "\(language.capitalized) code block. "
             let cleanedCode = codeText
                 .replacingOccurrences(of: "    ", with: " ") // Reduce indentation for speech
@@ -200,20 +205,20 @@ class MarkdownParser {
             let codeContentText = "\(cleanedCode) "
             let closingText = language.isEmpty ? "Code block ends. " : "\(language.capitalized) code block ends. "
             
-            // Opening announcement (female voice) - add invisible marker
-            let markedOpeningText = "\u{200B}🎤\u{200B}\(openingText)" // Zero-width space + microphone + zero-width space
+            // Opening announcement (will use female voice based on .announcement type)
+            print("🎤 MarkdownParser: Creating opening announcement section (full): '\(openingText.trimmingCharacters(in: .whitespacesAndNewlines))'")
             sections.append(ParsedSection(
                 startIndex: currentTextIndex,
-                endIndex: currentTextIndex + markedOpeningText.count,
-                type: .paragraph, // Use paragraph type for announcements
+                endIndex: currentTextIndex + openingText.count,
+                type: .announcement, // Clean section type for announcements
                 level: 0,
                 isSkippable: false,
                 originalText: "```\(language)",
-                spokenText: markedOpeningText
+                spokenText: openingText
             ))
-            currentTextIndex += markedOpeningText.count
+            currentTextIndex += openingText.count
             
-            // Code content (main voice) - no marker needed
+            // Code content (will use main voice based on .codeBlock type)
             sections.append(ParsedSection(
                 startIndex: currentTextIndex,
                 endIndex: currentTextIndex + codeContentText.count,
@@ -225,16 +230,15 @@ class MarkdownParser {
             ))
             currentTextIndex += codeContentText.count
             
-            // Closing announcement (female voice) - add invisible marker
-            let markedClosingText = "\u{200B}🎤\u{200B}\(closingText)" // Zero-width space + microphone + zero-width space
+            // Closing announcement (will use female voice based on .announcement type)
             sections.append(ParsedSection(
                 startIndex: currentTextIndex,
-                endIndex: currentTextIndex + markedClosingText.count,
-                type: .paragraph, // Use paragraph type for announcements
+                endIndex: currentTextIndex + closingText.count,
+                type: .announcement, // Clean section type for announcements
                 level: 0,
                 isSkippable: false,
                 originalText: "```",
-                spokenText: markedClosingText
+                spokenText: closingText
             ))
         }
         

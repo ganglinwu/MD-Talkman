@@ -344,67 +344,67 @@ class TTSManager: NSObject, ObservableObject {
         guard let parsedContent = currentParsedContent,
               let plainText = parsedContent.plainText else { return }
         
-        let maxPreloadUtterances = 3
-        var position = startPosition
+        // New approach: Process sections individually instead of arbitrary chunking
+        let maxPreloadSections = 5
+        var processedCount = 0
         
-        for i in 0..<maxPreloadUtterances {
-            print("🔍 Loop \(i): position=\(position), plainText.count=\(plainText.count)")
-            guard position < plainText.count else { 
-                print("🔍 Breaking: position >= plainText.count")
-                break 
+        // Find starting section
+        guard let startingSection = contentSections.first(where: { section in
+            startPosition >= section.startIndex && startPosition < section.endIndex
+        }) else {
+            print("🔍 No section found for position \(startPosition)")
+            return
+        }
+        
+        guard let startIndex = contentSections.firstIndex(where: { $0.startIndex == startingSection.startIndex }) else {
+            print("🔍 Could not find section index")
+            return
+        }
+        
+        print("🔍 Section-based chunking: Starting from section \(startIndex) (\(startingSection.typeEnum.displayName))")
+        
+        // Process sections one by one
+        for sectionIndex in startIndex..<min(startIndex + maxPreloadSections, contentSections.count) {
+            let section = contentSections[sectionIndex]
+            
+            print("🔍 Processing section \(sectionIndex): \(section.typeEnum.displayName) (\(section.startIndex)-\(section.endIndex))")
+            
+            // Extract section text
+            let sectionStart = Int(section.startIndex)
+            let sectionEnd = Int(section.endIndex)
+            
+            guard sectionStart < plainText.count,
+                  sectionEnd <= plainText.count,
+                  sectionStart < sectionEnd else { 
+                print("🔍 Skipping invalid section bounds: \(sectionStart)-\(sectionEnd)")
+                continue
             }
             
-            // Use existing section-boundary logic
-            print("🔍 Finding boundary from \(position)")
-            let chunkEndPosition = findNextInterjectionBoundary(from: position, maxSize: 50000)
-            print("🔍 Boundary found: \(chunkEndPosition)")
+            let startTextIndex = plainText.index(plainText.startIndex, offsetBy: sectionStart)
+            let endTextIndex = plainText.index(plainText.startIndex, offsetBy: sectionEnd)
+            let sectionText = String(plainText[startTextIndex..<endTextIndex])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
             
-            guard position < chunkEndPosition else { 
-                print("🔍 Breaking: position >= chunkEndPosition (\(position) >= \(chunkEndPosition))")
-                break 
+            guard !sectionText.isEmpty else {
+                print("🔍 Skipping empty section")
+                continue
             }
             
-            print("🔍 Getting text chunk \(position)-\(chunkEndPosition)")
-            // Safe text chunking using String.prefix/dropFirst instead of String.Index
-            var textChunk = ""
-            if position >= 0 && chunkEndPosition <= plainText.count && position < chunkEndPosition {
-                let prefixedText = String(plainText.prefix(chunkEndPosition))
-                textChunk = String(prefixedText.dropFirst(position))
-            }
-            print("🔍 Got text chunk: \(textChunk.count) characters")
+            print("🔍 Section text (\(sectionText.count) chars): \"\(sectionText.prefix(50))...\"")
+            print("🔍 Section type: \(section.typeEnum.displayName)")
             
-            // Simple approach: Use the chunk as-is, let each utterance handle its own voice
-            // The setupUtteranceParameters function will detect markers and switch voices appropriately
-            let actualChunkEndPosition = position + textChunk.count
-            print("🔍 Using chunk as-is: \(position)-\(actualChunkEndPosition) (\(textChunk.count) chars)")
+            // Create utterance for this specific section
+            let utterance = AVSpeechUtterance(string: sectionText)
+            let finalUtterance = setupUtteranceParameters(utterance, sectionType: section.typeEnum)
             
-            guard !textChunk.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { 
-                print("🔍 Breaking: empty text chunk")
-                break 
-            }
+            // Generate metadata for this section
+            let metadata = generateMetadataForSection(section)
             
-            // Create queued utterance - BUT keep markers for voice detection in setupUtteranceParameters
-            print("🔍 Creating AVSpeechUtterance")
-            print("🔍 Original text chunk: \"\(textChunk.prefix(50))...\"")
-            print("🔍 Contains marker in chunk: \(textChunk.contains("\u{200B}🎤\u{200B}"))")
-            let utterance = AVSpeechUtterance(string: textChunk) // Keep markers for now
-            print("🔍 Setting up utterance parameters")
-            let finalUtterance = setupUtteranceParameters(utterance)
-            
-            print("🔍 Finding section index")
-            let sectionIndex = findSectionIndexForPosition(position)
-            print("🔍 Generating metadata")
-            let metadata = generateMetadataForPosition(position)
-            
-            // Language announcements now handled naturally by the parser
-            // Parser generates: "Swift code block. [actual code] Swift code block ends."
-            // No need for zero-length interjection utterances
-            
-            print("🔍 Creating QueuedUtterance")
+            print("🔍 Creating QueuedUtterance for section")
             let queuedUtterance = QueuedUtterance(
                 utterance: finalUtterance,
-                startPosition: position,
-                endPosition: actualChunkEndPosition,
+                startPosition: sectionStart,
+                endPosition: sectionEnd,
                 sectionIndex: sectionIndex,
                 isInterjection: false,
                 priority: .normal,
@@ -412,14 +412,23 @@ class TTSManager: NSObject, ObservableObject {
                 performance: nil
             )
             
-            print("🔍 Appending to queue")
+            print("🔍 Appending section utterance to queue")
             utteranceQueueManager.appendUtterance(queuedUtterance)
-            position = actualChunkEndPosition
+            processedCount += 1
             
-            print("📝 Pre-loaded utterance \(i+1): \(queuedUtterance.startPosition)-\(queuedUtterance.endPosition)")
+            print("📝 Pre-loaded section \(sectionIndex): \(section.typeEnum.displayName) (\(queuedUtterance.startPosition)-\(queuedUtterance.endPosition))")
         }
         
-        print("✅ Pre-loaded \(utteranceQueueManager.queueCount) utterances for seamless playback")
+        print("✅ Pre-loaded \(processedCount) section-based utterances for seamless playback")
+    }
+    
+    private func generateMetadataForSection(_ section: ContentSection) -> UtteranceMetadata {
+        return UtteranceMetadata(
+            contentType: section.typeEnum,
+            language: section.typeEnum == .codeBlock ? extractLanguageFromSection(section) : nil,
+            isSkippable: section.isSkippable,
+            interjectionEvents: []
+        )
     }
     
     private func playQueuedUtterance(_ queuedUtterance: QueuedUtterance) {
@@ -514,7 +523,13 @@ class TTSManager: NSObject, ObservableObject {
                 for replayUtterance in replayUtterances {
                     let originalText = replayUtterance.utterance.speechString
                     let freshUtterance = AVSpeechUtterance(string: originalText)
-                    let finalFreshUtterance = setupUtteranceParameters(freshUtterance)
+                    
+                    // Find section type for replay utterance
+                    let replaySection = contentSections.first { section in
+                        replayUtterance.startPosition >= section.startIndex && replayUtterance.startPosition < section.endIndex
+                    }
+                    
+                    let finalFreshUtterance = setupUtteranceParameters(freshUtterance, sectionType: replaySection?.typeEnum)
                     
                     let freshQueuedUtterance = QueuedUtterance(
                         utterance: finalFreshUtterance,
@@ -701,35 +716,34 @@ class TTSManager: NSObject, ObservableObject {
     
     // Removed stopSpeakingImmediate - using natural TTS flow instead
     
-    private func setupUtteranceParameters(_ utterance: AVSpeechUtterance) -> AVSpeechUtterance {
-        // Check for female voice marker (invisible Unicode markers from parser)
+    private func setupUtteranceParameters(_ utterance: AVSpeechUtterance, sectionType: ContentSectionType? = nil) -> AVSpeechUtterance {
+        // Clean section-based voice selection (no more markers!)
         let text = utterance.speechString
-        let hasFemaleVoiceMarker = text.contains("\u{200B}🎤\u{200B}")
+        let isAnnouncement = sectionType == .announcement
         
         // Debug logging to understand what we're getting
-        print("🔍 Voice Detection Debug:")
+        print("🔍 Voice Selection Debug:")
         print("  Text length: \(text.count)")
         print("  Text preview: \"\(text.prefix(50))...\"")
-        print("  Contains marker: \(hasFemaleVoiceMarker)")
+        print("  Section type: \(sectionType?.displayName ?? "unknown")")
+        print("  Is announcement: \(isAnnouncement)")
         
-        // Create new utterance with cleaned text if needed
-        let finalUtterance: AVSpeechUtterance
-        if hasFemaleVoiceMarker {
-            let cleanedText = text.replacingOccurrences(of: "\u{200B}🎤\u{200B}", with: "")
-            finalUtterance = AVSpeechUtterance(string: cleanedText)
-            
-            // Use female voice for marked announcements
+        // Use the utterance as-is (no text cleaning needed)
+        let finalUtterance = utterance
+        
+        // Select voice based on clean section type
+        if isAnnouncement {
+            // Use female voice for announcements
             let femaleVoice = settingsManager.getSelectedInterjectionVoice() 
                            ?? settingsManager.getDefaultInterjectionVoice() 
                            ?? selectedVoice 
                            ?? getBestAvailableVoice()
             finalUtterance.voice = femaleVoice
-            print("🎤 Using female voice for marked announcement: \"\(cleanedText.prefix(30))...\"")
+            print("🎤 Using female voice for announcement: \"\(text.prefix(30))...\"")
         } else {
-            finalUtterance = utterance
-            // Use selected voice or fallback to best available
+            // Use main voice for all other content (paragraphs, code, headers, etc.)
             finalUtterance.voice = selectedVoice ?? getBestAvailableVoice()
-            print("👨 Using main voice for content")
+            print("👨 Using main voice for \(sectionType?.displayName ?? "content")")
         }
         
         // Speech rate (convert user-friendly speed to AVSpeechUtterance rate)
@@ -1445,9 +1459,15 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
             return
         }
         
-        // Create utterance with enhanced settings - keep markers for voice detection
+        // Create utterance with enhanced settings using section-based voice selection
         let tempUtterance = AVSpeechUtterance(string: textToSpeak)
-        currentUtterance = setupUtteranceParameters(tempUtterance)
+        
+        // Find current section type for voice selection
+        let currentSection = contentSections.first { section in
+            currentPosition >= section.startIndex && currentPosition < section.endIndex
+        }
+        
+        currentUtterance = setupUtteranceParameters(tempUtterance, sectionType: currentSection?.typeEnum)
         
         // Remember where this utterance starts in the document
         utteranceStartPosition = currentPosition

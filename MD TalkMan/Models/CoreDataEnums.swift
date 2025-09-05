@@ -50,6 +50,7 @@ enum ContentSectionType: String, CaseIterable {
     case blockquote = "blockquote"
     case image = "image"
     case table = "table"
+    case announcement = "announcement"
     
     var displayName: String {
         switch self {
@@ -67,6 +68,8 @@ enum ContentSectionType: String, CaseIterable {
             return "Image"
         case .table:
             return "Table"
+        case .announcement:
+            return "Announcement"
         }
     }
     
@@ -76,6 +79,8 @@ enum ContentSectionType: String, CaseIterable {
             return true  // Technical content users might want to skip
         case .header, .paragraph, .list, .blockquote, .image:
             return false
+        case .announcement:
+            return false  // Announcements should not be skipped by default
         }
     }
 }
