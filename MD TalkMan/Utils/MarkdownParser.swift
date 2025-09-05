@@ -49,9 +49,12 @@ class MarkdownParser {
                 currentIndex += headerResult.section.spokenText.count
                 
             } else if let codeBlockResult = parseCodeBlock(lines: lines, startIndex: i, textIndex: currentIndex) {
-                sections.append(codeBlockResult.section)
-                processedText += codeBlockResult.section.spokenText
-                currentIndex += codeBlockResult.section.spokenText.count
+                // Handle multiple sections from code block parsing
+                for codeSection in codeBlockResult.sections {
+                    sections.append(codeSection)
+                    processedText += codeSection.spokenText
+                    currentIndex += codeSection.spokenText.count
+                }
                 i = codeBlockResult.nextLineIndex - 1 // Will be incremented at end of loop
                 
             } else if let listResult = parseListItem(line: line, startIndex: currentIndex) {
@@ -122,7 +125,7 @@ class MarkdownParser {
     }
     
     // MARK: - Code Block Parsing
-    private func parseCodeBlock(lines: [String], startIndex: Int, textIndex: Int) -> (section: ParsedSection, nextLineIndex: Int)? {
+    private func parseCodeBlock(lines: [String], startIndex: Int, textIndex: Int) -> (sections: [ParsedSection], nextLineIndex: Int)? {
         let firstLine = lines[startIndex].trimmingCharacters(in: .whitespaces)
         guard firstLine.hasPrefix("```") else { return nil }
         
@@ -154,40 +157,88 @@ class MarkdownParser {
         // Convert code content to TTS-friendly text
         let codeText = codeContent.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
         
-        // Create spoken text with actual code content
-        let spokenText: String
+        // Create separate sections for voice control
+        var sections: [ParsedSection] = []
+        var currentTextIndex = textIndex
+        
         if codeText.isEmpty {
-            // Empty code block - use placeholder
-            if language.isEmpty {
-                spokenText = "[code] "
-            } else {
-                spokenText = "[\(language) code] "
-            }
+            // Empty code block - create simple announcement sections with markers
+            let openingText = language.isEmpty ? "Code block. " : "\(language.capitalized) code block. "
+            let closingText = language.isEmpty ? "Code block ends. " : "\(language.capitalized) code block ends. "
+            
+            // Opening announcement (female voice) - add invisible marker
+            let markedOpeningText = "\u{200B}🎤\u{200B}\(openingText)" // Zero-width space + microphone + zero-width space
+            sections.append(ParsedSection(
+                startIndex: currentTextIndex,
+                endIndex: currentTextIndex + markedOpeningText.count,
+                type: .paragraph, // Use paragraph type for announcements
+                level: 0,
+                isSkippable: false,
+                originalText: "```\(language)",
+                spokenText: markedOpeningText
+            ))
+            currentTextIndex += markedOpeningText.count
+            
+            // Closing announcement (female voice) - add invisible marker
+            let markedClosingText = "\u{200B}🎤\u{200B}\(closingText)" // Zero-width space + microphone + zero-width space
+            sections.append(ParsedSection(
+                startIndex: currentTextIndex,
+                endIndex: currentTextIndex + markedClosingText.count,
+                type: .paragraph, // Use paragraph type for announcements
+                level: 0,
+                isSkippable: false,
+                originalText: "```",
+                spokenText: markedClosingText
+            ))
+            
         } else {
-            // Include actual code content for TTS with language prefix for interjection system
+            // Code block with content - create three sections
+            let openingText = language.isEmpty ? "Code block. " : "\(language.capitalized) code block. "
             let cleanedCode = codeText
                 .replacingOccurrences(of: "    ", with: " ") // Reduce indentation for speech
                 .replacingOccurrences(of: "\t", with: " ")   // Convert tabs to spaces
+            let codeContentText = "\(cleanedCode) "
+            let closingText = language.isEmpty ? "Code block ends. " : "\(language.capitalized) code block ends. "
             
-            // Prefix with language info for TTSManager to extract, but make it subtle for TTS
-            if language.isEmpty {
-                spokenText = "[\(cleanedCode)] " // Wrap in brackets to indicate code
-            } else {
-                spokenText = "[\(language):\(cleanedCode)] " // Language prefix for extraction
-            }
+            // Opening announcement (female voice) - add invisible marker
+            let markedOpeningText = "\u{200B}🎤\u{200B}\(openingText)" // Zero-width space + microphone + zero-width space
+            sections.append(ParsedSection(
+                startIndex: currentTextIndex,
+                endIndex: currentTextIndex + markedOpeningText.count,
+                type: .paragraph, // Use paragraph type for announcements
+                level: 0,
+                isSkippable: false,
+                originalText: "```\(language)",
+                spokenText: markedOpeningText
+            ))
+            currentTextIndex += markedOpeningText.count
+            
+            // Code content (main voice) - no marker needed
+            sections.append(ParsedSection(
+                startIndex: currentTextIndex,
+                endIndex: currentTextIndex + codeContentText.count,
+                type: .codeBlock,
+                level: 0,
+                isSkippable: true, // Users can skip technical content
+                originalText: codeText,
+                spokenText: codeContentText
+            ))
+            currentTextIndex += codeContentText.count
+            
+            // Closing announcement (female voice) - add invisible marker
+            let markedClosingText = "\u{200B}🎤\u{200B}\(closingText)" // Zero-width space + microphone + zero-width space
+            sections.append(ParsedSection(
+                startIndex: currentTextIndex,
+                endIndex: currentTextIndex + markedClosingText.count,
+                type: .paragraph, // Use paragraph type for announcements
+                level: 0,
+                isSkippable: false,
+                originalText: "```",
+                spokenText: markedClosingText
+            ))
         }
         
-        let section = ParsedSection(
-            startIndex: textIndex,
-            endIndex: textIndex + spokenText.count,
-            type: .codeBlock,
-            level: 0,
-            isSkippable: true, // Users can skip technical content
-            originalText: lines[startIndex...endIndex].joined(separator: "\n"),
-            spokenText: spokenText
-        )
-        
-        return (section: section, nextLineIndex: endIndex + 1)
+        return (sections: sections, nextLineIndex: endIndex + 1)
     }
     
     // MARK: - List Item Parsing

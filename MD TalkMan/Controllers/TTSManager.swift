@@ -373,69 +373,38 @@ class TTSManager: NSObject, ObservableObject {
             }
             print("🔍 Got text chunk: \(textChunk.count) characters")
             
+            // Simple approach: Use the chunk as-is, let each utterance handle its own voice
+            // The setupUtteranceParameters function will detect markers and switch voices appropriately
+            let actualChunkEndPosition = position + textChunk.count
+            print("🔍 Using chunk as-is: \(position)-\(actualChunkEndPosition) (\(textChunk.count) chars)")
+            
             guard !textChunk.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { 
                 print("🔍 Breaking: empty text chunk")
                 break 
             }
             
-            // Create queued utterance
+            // Create queued utterance - BUT keep markers for voice detection in setupUtteranceParameters
             print("🔍 Creating AVSpeechUtterance")
-            let utterance = AVSpeechUtterance(string: textChunk)
+            print("🔍 Original text chunk: \"\(textChunk.prefix(50))...\"")
+            print("🔍 Contains marker in chunk: \(textChunk.contains("\u{200B}🎤\u{200B}"))")
+            let utterance = AVSpeechUtterance(string: textChunk) // Keep markers for now
             print("🔍 Setting up utterance parameters")
-            setupUtteranceParameters(utterance)
+            let finalUtterance = setupUtteranceParameters(utterance)
             
             print("🔍 Finding section index")
             let sectionIndex = findSectionIndexForPosition(position)
             print("🔍 Generating metadata")
             let metadata = generateMetadataForPosition(position)
             
-            // Check if we need to insert a language announcement for code blocks
-            if let language = metadata?.language, metadata?.contentType == .codeBlock {
-                print("🔍 Creating female voice language announcement: \(language) code")
-                
-                // Create language announcement utterance with female voice
-                let languageText = "\(language) code"
-                let languageUtterance = AVSpeechUtterance(string: languageText)
-                
-                // Get female interjection voice from SettingsManager
-                let femaleVoice = settingsManager.getSelectedInterjectionVoice() 
-                               ?? settingsManager.getDefaultInterjectionVoice() 
-                               ?? AVSpeechSynthesisVoice(language: "en-US")
-                
-                languageUtterance.voice = femaleVoice
-                languageUtterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.0
-                languageUtterance.volume = 0.85
-                languageUtterance.preUtteranceDelay = 0.2
-                languageUtterance.postUtteranceDelay = 1.5  // Longer pause for user to skip technical content
-                
-                let languageMetadata = UtteranceMetadata(
-                    contentType: .paragraph, // Treat as regular content for queue purposes
-                    language: language,
-                    isSkippable: false,
-                    interjectionEvents: []
-                )
-                
-                let languageQueuedUtterance = QueuedUtterance(
-                    utterance: languageUtterance,
-                    startPosition: position,
-                    endPosition: position, // Zero-length for announcement
-                    sectionIndex: sectionIndex,
-                    isInterjection: true, // Mark as interjection
-                    priority: .normal,
-                    metadata: languageMetadata,
-                    performance: nil
-                )
-                
-                // Add language announcement to queue first
-                utteranceQueueManager.appendUtterance(languageQueuedUtterance)
-                print("📝 Added female voice language announcement: \"\(languageText)\"")
-            }
+            // Language announcements now handled naturally by the parser
+            // Parser generates: "Swift code block. [actual code] Swift code block ends."
+            // No need for zero-length interjection utterances
             
             print("🔍 Creating QueuedUtterance")
             let queuedUtterance = QueuedUtterance(
-                utterance: utterance,
+                utterance: finalUtterance,
                 startPosition: position,
-                endPosition: chunkEndPosition,
+                endPosition: actualChunkEndPosition,
                 sectionIndex: sectionIndex,
                 isInterjection: false,
                 priority: .normal,
@@ -445,7 +414,7 @@ class TTSManager: NSObject, ObservableObject {
             
             print("🔍 Appending to queue")
             utteranceQueueManager.appendUtterance(queuedUtterance)
-            position = chunkEndPosition
+            position = actualChunkEndPosition
             
             print("📝 Pre-loaded utterance \(i+1): \(queuedUtterance.startPosition)-\(queuedUtterance.endPosition)")
         }
@@ -543,11 +512,12 @@ class TTSManager: NSObject, ObservableObject {
                 
                 // Create fresh utterances (can't reuse spoken ones)
                 for replayUtterance in replayUtterances {
-                    let freshUtterance = AVSpeechUtterance(string: replayUtterance.utterance.speechString)
-                    setupUtteranceParameters(freshUtterance)
+                    let originalText = replayUtterance.utterance.speechString
+                    let freshUtterance = AVSpeechUtterance(string: originalText)
+                    let finalFreshUtterance = setupUtteranceParameters(freshUtterance)
                     
                     let freshQueuedUtterance = QueuedUtterance(
-                        utterance: freshUtterance,
+                        utterance: finalFreshUtterance,
                         startPosition: replayUtterance.startPosition,
                         endPosition: replayUtterance.endPosition,
                         sectionIndex: replayUtterance.sectionIndex,
@@ -731,25 +701,54 @@ class TTSManager: NSObject, ObservableObject {
     
     // Removed stopSpeakingImmediate - using natural TTS flow instead
     
-    private func setupUtteranceParameters(_ utterance: AVSpeechUtterance) {
-        // Use selected voice or fallback to best available
-        utterance.voice = selectedVoice ?? getBestAvailableVoice()
+    private func setupUtteranceParameters(_ utterance: AVSpeechUtterance) -> AVSpeechUtterance {
+        // Check for female voice marker (invisible Unicode markers from parser)
+        let text = utterance.speechString
+        let hasFemaleVoiceMarker = text.contains("\u{200B}🎤\u{200B}")
+        
+        // Debug logging to understand what we're getting
+        print("🔍 Voice Detection Debug:")
+        print("  Text length: \(text.count)")
+        print("  Text preview: \"\(text.prefix(50))...\"")
+        print("  Contains marker: \(hasFemaleVoiceMarker)")
+        
+        // Create new utterance with cleaned text if needed
+        let finalUtterance: AVSpeechUtterance
+        if hasFemaleVoiceMarker {
+            let cleanedText = text.replacingOccurrences(of: "\u{200B}🎤\u{200B}", with: "")
+            finalUtterance = AVSpeechUtterance(string: cleanedText)
+            
+            // Use female voice for marked announcements
+            let femaleVoice = settingsManager.getSelectedInterjectionVoice() 
+                           ?? settingsManager.getDefaultInterjectionVoice() 
+                           ?? selectedVoice 
+                           ?? getBestAvailableVoice()
+            finalUtterance.voice = femaleVoice
+            print("🎤 Using female voice for marked announcement: \"\(cleanedText.prefix(30))...\"")
+        } else {
+            finalUtterance = utterance
+            // Use selected voice or fallback to best available
+            finalUtterance.voice = selectedVoice ?? getBestAvailableVoice()
+            print("👨 Using main voice for content")
+        }
         
         // Speech rate (convert user-friendly speed to AVSpeechUtterance rate)
         // User speed: 0.5x-2.0x -> AVSpeech rate: 0.25-1.0 (0.5 = normal)
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * playbackSpeed
+        finalUtterance.rate = AVSpeechUtteranceDefaultSpeechRate * playbackSpeed
         
         // Pitch adjustment for more natural sound
-        utterance.pitchMultiplier = pitchMultiplier
+        finalUtterance.pitchMultiplier = pitchMultiplier
         
         // Volume control
-        utterance.volume = volumeMultiplier
+        finalUtterance.volume = volumeMultiplier
         
         // Extended pre-utterance delay for smoother transitions
-        utterance.preUtteranceDelay = 0.3
+        finalUtterance.preUtteranceDelay = 0.3
         
         // Dynamic post-utterance delay based on content type
-        utterance.postUtteranceDelay = getPostUtteranceDelay()
+        finalUtterance.postUtteranceDelay = getPostUtteranceDelay()
+        
+        return finalUtterance
     }
     
     private func getPostUtteranceDelay() -> TimeInterval {
@@ -1207,34 +1206,15 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
         let fromSection = contentSections[fromIndex]
         let toSection = contentSections[toIndex]
         
-        // Handle code block transitions with immediate interruption
+        // Code block transitions now handled naturally by parser text
         if toSection.typeEnum == .codeBlock && fromSection.typeEnum != .codeBlock {
-            // Entering code block - interrupt TTS immediately for perfect timing
-            print("🎯 TTSManager: Entering code block - triggering immediate interjection")
-            let language = extractLanguageFromSection(toSection)
-            
-            // Pause TTS immediately for perfect timing
-            synthesizer.pauseSpeaking(at: .word)
-            print("⏸️ TTSManager: TTS paused for code block interjection")
-            
-            let event = InterjectionEvent.codeBlockStart(language: language, section: toSection)
-            interjectionManager.handleInterjection(event, ttsManager: self) {
-                print("✅ TTSManager: Code block interjection completed - resuming TTS")
-                
-                // Resume TTS after interjection
-                DispatchQueue.main.async { [weak self] in
-                    guard let self = self else { return }
-                    if self.synthesizer.isPaused {
-                        self.synthesizer.continueSpeaking()
-                        print("▶️ TTSManager: TTS resumed after code block interjection")
-                    }
-                }
-            }
+            // Code block entry - no special handling needed (parser handles announcements)
+            print("🎯 TTSManager: Entering code block - handled by parser text")
             
         } else if toSection.typeEnum != .codeBlock && fromSection.typeEnum == .codeBlock {
-            // Exiting code block - use normal audio feedback (no interruption needed)
-            let event = InterjectionEvent.codeBlockEnd(section: fromSection)
-            handleInterjectionEvent(event)
+            // Code block endings now handled naturally by parser text
+            // Parser generates: "Swift code block. [code] Swift code block ends."
+            print("🎯 TTSManager: Code block section completed - ending handled by parser")
         } else {
             // Regular section change (paragraph to paragraph) - no audio feedback needed
             // Only code blocks get special audio treatment for a cleaner experience
@@ -1254,6 +1234,9 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
             // Interjection completed, TTS will continue naturally
         }
     }
+    
+    
+    // MARK: - Smart Chunking Helper
     
     
     // MARK: - Legacy handleCodeBlockEntry removed - now handled by InterjectionManager
@@ -1435,9 +1418,9 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
         let isCodeBlock = section.typeEnum == .codeBlock
         print("🔍 generateMetadata: isCodeBlock = \(isCodeBlock)")
         
-        // Safe language extraction using prefix/dropFirst approach
-        let language = isCodeBlock ? extractLanguageFromSection(section) : nil
-        print("🔍 generateMetadata: Language extraction complete, language = \(language?.description ?? "nil")")
+        // Language extraction disabled - now handled by parser's natural text
+        let language: String? = nil
+        print("🔍 generateMetadata: Language extraction disabled (handled by parser)")
         
         print("🔍 generateMetadata: Creating UtteranceMetadata object")
         let metadata = UtteranceMetadata(
@@ -1462,9 +1445,9 @@ extension TTSManager: AVSpeechSynthesizerDelegate {
             return
         }
         
-        // Create utterance with enhanced settings
-        currentUtterance = AVSpeechUtterance(string: textToSpeak)
-        setupUtteranceParameters(currentUtterance!)
+        // Create utterance with enhanced settings - keep markers for voice detection
+        let tempUtterance = AVSpeechUtterance(string: textToSpeak)
+        currentUtterance = setupUtteranceParameters(tempUtterance)
         
         // Remember where this utterance starts in the document
         utteranceStartPosition = currentPosition
